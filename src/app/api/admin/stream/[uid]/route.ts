@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getStreamVideo, iframeUrl } from "@/lib/cloudflare-stream";
+import { getBunnyVideo } from "@/lib/bunny-stream";
 
 export const runtime = "nodejs";
 
@@ -15,19 +15,18 @@ export async function GET(
   }
 
   try {
-    const v = await getStreamVideo(params.uid);
+    const v = await getBunnyVideo(params.uid);
     return NextResponse.json({
-      uid: v.uid,
-      status: v.status?.state,
+      uid: v.guid,
+      status: v.status,
       readyToStream: v.readyToStream,
-      duration: v.duration,
-      thumbnail: v.thumbnail,
-      preview: v.preview,
-      hls: v.playback?.hls,
-      embedUrl: iframeUrl(v.uid),
+      duration: v.length,
+      thumbnail: v.thumbnailUrl,
+      hls: v.hlsUrl,
+      embedUrl: v.embedUrl,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "stream lookup failed";
+    const msg = e instanceof Error ? e.message : "lookup failed";
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 }

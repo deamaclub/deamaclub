@@ -171,20 +171,21 @@ export default function PostForm({
             }}
           />
           <p className="text-[10px] text-deama-muted mt-1">
-            Resumable upload to Cloudflare Stream via TUS. Needs
-            <code className="mx-1">CLOUDFLARE_ACCOUNT_ID</code> and
-            <code className="mx-1">CLOUDFLARE_STREAM_TOKEN</code> set.
+            Resumable upload to Bunny Stream via TUS. Needs
+            <code className="mx-1">BUNNY_STREAM_LIBRARY_ID</code>,
+            <code className="mx-1">BUNNY_STREAM_API_KEY</code>, and
+            <code className="mx-1">BUNNY_STREAM_PULL_ZONE</code> set.
           </p>
         </div>
         <div className="border-t border-deama-border pt-3">
           <label className={labelCls}>
-            Embed URL (YouTube / Cloudflare Stream iframe URL)
+            Embed URL (YouTube, Rumble, Bunny iframe, etc.)
           </label>
           <input
             value={form.embedUrl}
             onChange={(e) => update("embedUrl", e.target.value)}
             className={inputCls}
-            placeholder="https://iframe.cloudflarestream.com/<uid> or https://www.youtube.com/embed/<id>"
+            placeholder="https://rumble.com/embed/<id>/  ·  https://www.youtube.com/embed/<id>  ·  https://iframe.mediadelivery.net/embed/<lib>/<guid>"
           />
         </div>
         <div>

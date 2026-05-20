@@ -15,7 +15,15 @@ interface StreamUploaderProps {
   onComplete: (r: StreamUploadResult) => void;
 }
 
-const CHUNK_SIZE = 50 * 1024 * 1024; // 50 MB — multiple of 256 KB, >= 5 MB
+const CHUNK_SIZE = 50 * 1024 * 1024; // 50 MB
+
+interface InitResponse {
+  guid: string;
+  libraryId: string;
+  authorizationSignature: string;
+  authorizationExpire: number;
+  tusEndpoint: string;
+}
 
 export default function StreamUploader({ onComplete }: StreamUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,20 +49,23 @@ export default function StreamUploader({ onComplete }: StreamUploaderProps) {
       setProgress(null);
       return;
     }
-    const { uploadUrl, uid } = (await init.json()) as {
-      uploadUrl: string;
-      uid: string;
-    };
+    const upload = (await init.json()) as InitResponse;
 
-    setStatus("Uploading to Cloudflare Stream…");
+    setStatus("Uploading to Bunny Stream…");
 
-    const upload = new tus.Upload(file, {
-      uploadUrl,
-      chunkSize: CHUNK_SIZE,
+    const tusUpload = new tus.Upload(file, {
+      endpoint: upload.tusEndpoint,
       retryDelays: [0, 3000, 5000, 10000, 20000],
+      chunkSize: CHUNK_SIZE,
+      headers: {
+        AuthorizationSignature: upload.authorizationSignature,
+        AuthorizationExpire: String(upload.authorizationExpire),
+        VideoId: upload.guid,
+        LibraryId: upload.libraryId,
+      },
       metadata: {
-        filename: file.name,
-        filetype: file.type,
+        filetype: file.type || "video/mp4",
+        title: file.name,
       },
       onError(err) {
         setError(err.message || "Upload failed.");
@@ -64,33 +75,37 @@ export default function StreamUploader({ onComplete }: StreamUploaderProps) {
         setProgress(Math.round((sent / total) * 100));
       },
       async onSuccess() {
-        setStatus("Finalizing on Cloudflare…");
-        // Poll the video record briefly so we can grab the auto-thumbnail
-        // and duration. CF returns these even before encoding completes.
+        setStatus("Finalizing on Bunny…");
         type StreamInfo = {
           uid: string;
           embedUrl: string;
           thumbnail: string;
           duration?: number;
+          readyToStream?: boolean;
           error?: string;
         };
         let info: StreamInfo | null = null;
-        for (let i = 0; i < 8; i++) {
-          await new Promise((r) => setTimeout(r, i === 0 ? 500 : 2000));
-          const r = await fetch(`/api/admin/stream/${uid}`);
+        for (let i = 0; i < 10; i++) {
+          await new Promise((r) => setTimeout(r, i === 0 ? 800 : 2500));
+          const r = await fetch(`/api/admin/stream/${upload.guid}`);
           if (r.ok) {
             const j = (await r.json()) as StreamInfo;
-            if (j.thumbnail) {
+            // Bunny populates duration + thumbnail name within a few seconds
+            // even before encoding completes. Keep polling until we have a
+            // duration > 0 so the form auto-fills meaningful values.
+            if (j.duration && j.duration > 0) {
               info = j;
               break;
             }
+            info = j; // capture latest in case poll loop exits
           }
         }
 
         const result: StreamUploadResult = {
-          uid,
+          uid: upload.guid,
           embedUrl:
-            info?.embedUrl || `https://iframe.cloudflarestream.com/${uid}`,
+            info?.embedUrl ||
+            `https://iframe.mediadelivery.net/embed/${upload.libraryId}/${upload.guid}`,
           thumbnailUrl: info?.thumbnail || "",
           durationSec:
             info?.duration && info.duration > 0
@@ -98,13 +113,17 @@ export default function StreamUploader({ onComplete }: StreamUploaderProps) {
               : null,
         };
         onComplete(result);
-        setStatus("Upload complete. CF is still encoding — playback ready in ~1 min.");
+        setStatus(
+          info?.readyToStream
+            ? "Upload complete and ready to play."
+            : "Upload complete. Bunny is still encoding — playback ready in ~1 min."
+        );
         setDone(true);
         setProgress(100);
       },
     });
 
-    upload.start();
+    tusUpload.start();
   }
 
   return (
@@ -117,7 +136,7 @@ export default function StreamUploader({ onComplete }: StreamUploaderProps) {
       >
         <UploadCloud size={14} />
         {progress === null
-          ? "Upload video to Cloudflare Stream"
+          ? "Upload video to Bunny Stream"
           : progress < 100
           ? `Uploading… ${progress}%`
           : "Re-upload"}

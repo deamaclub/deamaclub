@@ -8,10 +8,10 @@ Live site: **[deamaclub.com](https://deamaclub.com)**
 
 - **Next.js 14** (App Router) + TypeScript
 - **Tailwind CSS** — dark + red accent theme (`tailwind.config.ts`)
-- **Prisma** + **Supabase** (managed Postgres, pgbouncer-pooled)
+- **Prisma** + **Supabase** (managed Postgres, Session-pooled)
 - **NextAuth.js** — admin login (credentials provider, bcrypt hashes, JWT sessions)
-- **Cloudflare Stream** — resumable TUS uploads straight from the admin form
-- **Cloudflare Images** — thumbnail CDN (with local fallback for dev)
+- **Bunny Stream** — resumable TUS uploads straight from the admin form
+- **Cloudflare** — DNS + free CDN + free SSL in front of the origin
 - **PM2** + **Nginx** — production process manager and reverse proxy
 - No Docker required
 

@@ -6,12 +6,15 @@ const nextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
-      { protocol: "https", hostname: "**.cloudflarestream.com" },
-      { protocol: "https", hostname: "videodelivery.net" },
-      { protocol: "https", hostname: "imagedelivery.net" },
-      { protocol: "https", hostname: "**.cdn.cloudflare.net" },
+      // Bunny Stream + Bunny CDN
+      { protocol: "https", hostname: "**.b-cdn.net" },
+      { protocol: "https", hostname: "iframe.mediadelivery.net" },
+      // YouTube + Rumble thumbnails (auto-generated when you embed)
       { protocol: "https", hostname: "i.ytimg.com" },
       { protocol: "https", hostname: "img.youtube.com" },
+      { protocol: "https", hostname: "sp.rmbl.ws" },
+      { protocol: "https", hostname: "**.rumble.com" },
+      // Site itself (logos, local /uploads/)
       { protocol: "https", hostname: "deamaclub.com" },
       { protocol: "https", hostname: "**.deamaclub.com" },
     ],
