@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Suspense } from "react";
 import SearchBar from "./SearchBar";
 import CategoryNav from "./CategoryNav";
 
@@ -21,7 +22,13 @@ export default function Header() {
           </span>
         </Link>
 
-        <SearchBar className="flex-1 max-w-xl ml-auto md:ml-8" />
+        <Suspense
+          fallback={
+            <div className="flex-1 max-w-xl ml-auto md:ml-8 h-9 bg-deama-ink border border-deama-border rounded" />
+          }
+        >
+          <SearchBar className="flex-1 max-w-xl ml-auto md:ml-8" />
+        </Suspense>
 
         <Link
           href="/admin"
