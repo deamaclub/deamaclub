@@ -43,15 +43,20 @@ sudo apt-get install -y nginx certbot python3-certbot-nginx
 ## 3. Provision the database (Supabase)
 
 1. Create a project at [supabase.com](https://supabase.com) — pick a region near your VPS.
-2. In the project dashboard, go to **Settings → Database → Connection string → URI** and copy it.
-3. Paste it into `.env.production` as `DATABASE_URL` (next step).
+2. In the project dashboard click **Connect** → the modal lists three connection methods:
+   - **Direct connection** — IPv6 only (unless you buy the IPv4 add-on)
+   - **Transaction pooler** — also IPv6 only by default
+   - **Session pooler (Shared Pooler)** — IPv4 ✓, hostname `aws-1-<region>.pooler.supabase.com:5432`
+3. On any IPv4-only network (most VPS providers' default networking, and most home/office networks), use the **Session pooler** URL for both `DATABASE_URL` and `DIRECT_URL`:
 
-You actually want **two** connection strings:
+```env
+DATABASE_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-1-<region>.pooler.supabase.com:5432/postgres"
+DIRECT_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-1-<region>.pooler.supabase.com:5432/postgres"
+```
 
-- **Direct connection** (port 5432) — used by `prisma migrate deploy` for DDL. Set as `DIRECT_URL`.
-- **Pooled connection** (port 6543, ends in `?pgbouncer=true&connection_limit=1`) — used by the running app to avoid exhausting connections. Set as `DATABASE_URL`.
+Username format is `postgres.<project-ref>` (with the dot), where `<project-ref>` is the 20-char string from the dashboard URL bar.
 
-Then in `prisma/schema.prisma`, the datasource block tells Prisma to use both:
+Then in `prisma/schema.prisma` the datasource block already declares both:
 
 ```prisma
 datasource db {
@@ -61,7 +66,15 @@ datasource db {
 }
 ```
 
-(See the schema file — this is already configured.)
+### If you want the transaction pooler (better for many ephemeral connections)
+
+Enable Supabase's **dedicated IPv4 add-on** ($4/mo) on the project, then switch `DATABASE_URL` to:
+
+```env
+DATABASE_URL="postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:6543/postgres?pgbouncer=true&connection_limit=1"
+```
+
+Session pooler is fine for the PM2-cluster setup in this guide — each Node process holds a long-lived connection. Transaction pooler matters when many short-lived workers compete (serverless / lambdas / many cron jobs).
 
 > **Tip:** keep the Supabase service-role key out of `.env` — we only need the connection strings. Supabase Auth and Storage aren't used; we're treating it as a plain Postgres host.
 
