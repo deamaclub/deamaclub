@@ -53,7 +53,7 @@ export async function PATCH(
   const existing = await prisma.post.findUnique({ where: { id: params.id } });
   if (!existing) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  let slug = (d.slug || slugify(d.title)).trim();
+  let slug = slugify(d.slug || d.title);
   if (slug && slug !== existing.slug) {
     const dupe = await prisma.post.findUnique({ where: { slug } });
     if (dupe) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;

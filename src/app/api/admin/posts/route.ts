@@ -48,8 +48,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let slug = (d.slug || slugify(d.title)).trim();
-  if (!slug) slug = slugify(d.title) || `post-${Date.now()}`;
+  // Always slugify user-provided slugs so spaces/uppercase/punctuation
+  // can't break URL routing.
+  let slug = slugify(d.slug || d.title);
+  if (!slug) slug = `post-${Date.now()}`;
 
   // ensure uniqueness
   const existing = await prisma.post.findUnique({ where: { slug } });
