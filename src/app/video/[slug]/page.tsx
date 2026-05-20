@@ -1,0 +1,166 @@
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { getRelatedPosts } from "@/lib/posts";
+import VideoPlayer from "@/components/VideoPlayer";
+import ShareButtons from "@/components/ShareButtons";
+import Comments from "@/components/Comments";
+import VideoCard from "@/components/VideoCard";
+import AdSlot from "@/components/AdSlot";
+import { absoluteUrl, timeAgo, formatViews } from "@/lib/utils";
+import { Eye, Clock } from "lucide-react";
+
+export const revalidate = 30;
+
+interface PageProps {
+  params: { slug: string };
+}
+
+async function loadPost(slug: string) {
+  return prisma.post.findUnique({
+    where: { slug },
+    include: {
+      category: { select: { name: true, slug: true, id: true } },
+      tags: { select: { name: true, slug: true } },
+    },
+  });
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const post = await loadPost(params.slug);
+  if (!post || !post.published) {
+    return { title: "Video not found" };
+  }
+  const url = absoluteUrl(`/video/${post.slug}`);
+  const image = post.thumbnailUrl || "/og-default.jpg";
+  return {
+    title: post.title,
+    description: post.description || undefined,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "video.other",
+      url,
+      title: post.title,
+      description: post.description || undefined,
+      images: [image],
+    },
+    twitter: {
+      card: "player",
+      title: post.title,
+      description: post.description || undefined,
+      images: [image],
+    },
+  };
+}
+
+export default async function VideoPage({ params }: PageProps) {
+  const post = await loadPost(params.slug);
+  if (!post || !post.published) notFound();
+
+  const [related] = await Promise.all([
+    getRelatedPosts(post.id, post.category.id, 8),
+  ]);
+  const url = absoluteUrl(`/video/${post.slug}`);
+
+  const ldJson = {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: post.title,
+    description: post.description || post.title,
+    thumbnailUrl: post.thumbnailUrl ? [post.thumbnailUrl] : undefined,
+    uploadDate: (post.publishedAt || post.createdAt).toISOString(),
+    duration: post.durationSec
+      ? `PT${Math.floor(post.durationSec / 60)}M${post.durationSec % 60}S`
+      : undefined,
+    embedUrl: post.embedUrl || undefined,
+    contentUrl: post.videoUrl || undefined,
+    interactionStatistic: {
+      "@type": "InteractionCounter",
+      interactionType: { "@type": "WatchAction" },
+      userInteractionCount: post.viewCount,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Deamaclub",
+      logo: {
+        "@type": "ImageObject",
+        url: absoluteUrl("/logo.svg"),
+      },
+    },
+  };
+
+  return (
+    <article className="mx-auto max-w-7xl px-4 py-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(ldJson) }}
+      />
+
+      <div>
+        <AdSlot id="article-top" size="leaderboard" className="mb-4" />
+
+        <VideoPlayer
+          postId={post.id}
+          embedUrl={post.embedUrl}
+          videoUrl={post.videoUrl}
+          thumbnailUrl={post.thumbnailUrl}
+          title={post.title}
+        />
+
+        <header className="mt-4">
+          <Link
+            href={`/category/${post.category.slug}`}
+            className="inline-block bg-deama-red text-white text-[11px] font-bold uppercase tracking-widest px-2 py-1 rounded mb-2"
+          >
+            {post.category.name}
+          </Link>
+          <h1 className="font-display tracking-wide text-3xl md:text-4xl leading-tight">
+            {post.title}
+          </h1>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-deama-muted mt-3">
+            <span className="inline-flex items-center gap-1">
+              <Eye size={12} /> {formatViews(post.viewCount)} views
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Clock size={12} /> {timeAgo(post.publishedAt || post.createdAt)}
+            </span>
+          </div>
+        </header>
+
+        {post.description && (
+          <p className="mt-4 text-sm text-deama-text/90 whitespace-pre-wrap leading-relaxed">
+            {post.description}
+          </p>
+        )}
+
+        <div className="mt-4">
+          <ShareButtons url={url} title={post.title} />
+        </div>
+
+        <AdSlot id="article-mid" size="in-article" className="my-6" />
+
+        <Comments postId={post.id} />
+
+        <AdSlot id="article-bottom" size="leaderboard" className="mt-8" />
+      </div>
+
+      <aside className="space-y-4">
+        <AdSlot id="video-sidebar-1" size="halfpage" />
+        <section>
+          <h2 className="font-display tracking-wider text-lg text-deama-gold-bright mb-3">
+            UP NEXT
+          </h2>
+          <div className="grid grid-cols-1 gap-3">
+            {related.map((r) => (
+              <VideoCard key={r.slug} post={r} size="sm" />
+            ))}
+          </div>
+        </section>
+        <AdSlot id="video-sidebar-2" size="rectangle" />
+      </aside>
+    </article>
+  );
+}
