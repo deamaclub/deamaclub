@@ -25,6 +25,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily" as const,
       priority: 0.8,
     })),
+    ...["about", "contact", "privacy", "terms"].map((p) => ({
+      url: absoluteUrl(`/${p}`),
+      lastModified: now,
+      changeFrequency: "yearly" as const,
+      priority: 0.3,
+    })),
     ...posts.map((p) => ({
       url: absoluteUrl(`/video/${p.slug}`),
       lastModified: p.updatedAt,
