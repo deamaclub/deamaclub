@@ -48,3 +48,8 @@ next-env.d.ts
 # OS
 Thumbs.db
 desktop.ini
+
+# Editor swap files (vim/etc)
+*.swp
+*.swo
+*~
