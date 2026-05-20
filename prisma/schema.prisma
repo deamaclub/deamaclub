@@ -1,0 +1,96 @@
+// Deamaclub Prisma schema
+// PostgreSQL backed via DATABASE_URL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  posts     Post[]
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+model Category {
+  id        String  @id @default(cuid())
+  name      String  @unique
+  slug      String  @unique
+  order     Int     @default(0)
+  posts     Post[]
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  slug  String @unique
+  posts Post[] @relation("PostTags")
+}
+
+model Post {
+  id            String     @id @default(cuid())
+  slug          String     @unique
+  title         String
+  description   String?
+  // Either an embed URL (YouTube/Cloudflare Stream iframe) OR a direct video URL.
+  embedUrl      String?
+  videoUrl      String?
+  thumbnailUrl  String?
+  durationSec   Int?
+  published     Boolean    @default(false)
+  trending      Boolean    @default(false)
+  viewCount     Int        @default(0)
+  publishedAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  authorId      String?
+  author        User?      @relation(fields: [authorId], references: [id])
+  categoryId    String
+  category      Category   @relation(fields: [categoryId], references: [id])
+  tags          Tag[]      @relation("PostTags")
+  comments      Comment[]
+  views         View[]
+
+  @@index([published, publishedAt(sort: Desc)])
+  @@index([categoryId, published, publishedAt(sort: Desc)])
+  @@index([trending, published])
+  @@index([title])
+}
+
+model View {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  ipHash    String?
+  userAgent String?
+  referer   String?
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    String
+  body      String
+  approved  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt(sort: Desc)])
+}
