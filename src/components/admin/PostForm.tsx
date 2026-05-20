@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Save, Trash2 } from "lucide-react";
+import StreamUploader, {
+  type StreamUploadResult,
+} from "./StreamUploader";
 
 interface CategoryOpt {
   id: string;
@@ -158,6 +161,22 @@ export default function PostForm({
           Video source
         </legend>
         <div>
+          <label className={labelCls}>Upload video file</label>
+          <StreamUploader
+            onComplete={(r: StreamUploadResult) => {
+              update("embedUrl", r.embedUrl);
+              if (r.thumbnailUrl) update("thumbnailUrl", r.thumbnailUrl);
+              if (r.durationSec) update("durationSec", r.durationSec);
+              update("videoUrl", "");
+            }}
+          />
+          <p className="text-[10px] text-deama-muted mt-1">
+            Resumable upload to Cloudflare Stream via TUS. Needs
+            <code className="mx-1">CLOUDFLARE_ACCOUNT_ID</code> and
+            <code className="mx-1">CLOUDFLARE_STREAM_TOKEN</code> set.
+          </p>
+        </div>
+        <div className="border-t border-deama-border pt-3">
           <label className={labelCls}>
             Embed URL (YouTube / Cloudflare Stream iframe URL)
           </label>

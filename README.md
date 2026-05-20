@@ -8,10 +8,12 @@ Live site: **[deamaclub.com](https://deamaclub.com)**
 
 - **Next.js 14** (App Router) + TypeScript
 - **Tailwind CSS** — dark + red accent theme (`tailwind.config.ts`)
-- **Prisma** + **PostgreSQL** — content & view tracking
+- **Prisma** + **Supabase** (managed Postgres, pgbouncer-pooled)
 - **NextAuth.js** — admin login (credentials provider, bcrypt hashes, JWT sessions)
-- **Cloudflare** — Images + Stream for media delivery (with local fallback for dev)
+- **Cloudflare Stream** — resumable TUS uploads straight from the admin form
+- **Cloudflare Images** — thumbnail CDN (with local fallback for dev)
 - **PM2** + **Nginx** — production process manager and reverse proxy
+- No Docker required
 
 ## Features
 
@@ -33,15 +35,19 @@ npm install
 
 # 2. Configure env
 cp .env.example .env
-# Edit DATABASE_URL, NEXTAUTH_SECRET (openssl rand -base64 32), etc.
+# Paste DATABASE_URL + DIRECT_URL from Supabase
+# (Settings → Database → Connection string).
+# Generate NEXTAUTH_SECRET with: openssl rand -base64 32
 
-# 3. Set up the DB
+# 3. Apply schema + seed (Supabase or any Postgres works)
 npx prisma migrate dev --name init
 npm run db:seed   # creates categories + admin user from ADMIN_EMAIL/ADMIN_PASSWORD
 
 # 4. Run
 npm run dev
 ```
+
+> No local Postgres or Docker needed — Prisma talks directly to Supabase.
 
 Visit:
 

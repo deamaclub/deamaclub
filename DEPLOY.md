@@ -2,6 +2,8 @@
 
 Target: a clean Ubuntu 22.04 / 24.04 LTS VPS (DigitalOcean, Hetzner, Vultr, etc.) with `deamaclub.com` and `www.deamaclub.com` DNS A-records pointing at it.
 
+This guide uses **Supabase** for the database (managed Postgres, free tier covers a launch) and **Cloudflare Stream** for video hosting. No Docker, no local Postgres needed.
+
 ## 1. Initial server hardening
 
 ```bash
@@ -24,7 +26,7 @@ ufw --force enable
 
 Switch to the `deploy` user: `su - deploy`.
 
-## 2. Install Node.js 20, Nginx, PostgreSQL
+## 2. Install Node.js 20, Nginx, Certbot
 
 ```bash
 # Node 20 via NodeSource
@@ -34,21 +36,34 @@ sudo apt-get install -y nodejs
 # PM2
 sudo npm i -g pm2
 
-# Nginx + Certbot + PostgreSQL
-sudo apt-get install -y nginx certbot python3-certbot-nginx postgresql postgresql-contrib
+# Nginx + Certbot (no local Postgres — using Supabase)
+sudo apt-get install -y nginx certbot python3-certbot-nginx
 ```
 
-## 3. Provision the database
+## 3. Provision the database (Supabase)
 
-```bash
-sudo -u postgres psql <<'SQL'
-CREATE USER deamaclub WITH PASSWORD 'CHANGE_ME_STRONG_PASSWORD';
-CREATE DATABASE deamaclub OWNER deamaclub;
-GRANT ALL PRIVILEGES ON DATABASE deamaclub TO deamaclub;
-SQL
+1. Create a project at [supabase.com](https://supabase.com) — pick a region near your VPS.
+2. In the project dashboard, go to **Settings → Database → Connection string → URI** and copy it.
+3. Paste it into `.env.production` as `DATABASE_URL` (next step).
+
+You actually want **two** connection strings:
+
+- **Direct connection** (port 5432) — used by `prisma migrate deploy` for DDL. Set as `DIRECT_URL`.
+- **Pooled connection** (port 6543, ends in `?pgbouncer=true&connection_limit=1`) — used by the running app to avoid exhausting connections. Set as `DATABASE_URL`.
+
+Then in `prisma/schema.prisma`, the datasource block tells Prisma to use both:
+
+```prisma
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
 ```
 
-Test: `psql "postgresql://deamaclub:CHANGE_ME_STRONG_PASSWORD@localhost:5432/deamaclub"` — `\q` to exit.
+(See the schema file — this is already configured.)
+
+> **Tip:** keep the Supabase service-role key out of `.env` — we only need the connection strings. Supabase Auth and Storage aren't used; we're treating it as a plain Postgres host.
 
 ## 4. Deploy the code
 
@@ -65,8 +80,8 @@ nano .env.production   # fill in real values: DATABASE_URL, NEXTAUTH_SECRET, etc
 
 # Install + build
 npm ci
-npx prisma migrate deploy
-npm run db:seed        # creates categories + admin user
+npx prisma migrate deploy   # applies migrations to Supabase via DIRECT_URL
+npm run db:seed             # creates categories + admin user
 npm run build
 ```
 
@@ -143,15 +158,20 @@ To wire Raptive / Mediavine / Google Ad Manager:
 
 ## 9. Backups
 
+Supabase takes **daily automated backups** on every paid tier (Pro and above) and retains them for 7 days; Free-tier projects can be exported manually from **Project Settings → Database → Backups**. If you want a redundant off-site dump, run this cron on the VPS using the direct connection string:
+
 ```bash
-# Nightly pg_dump
+# /etc/cron.daily/deamaclub-pgdump  (requires postgresql-client only)
+sudo apt-get install -y postgresql-client
 cat <<'CRON' | sudo tee /etc/cron.daily/deamaclub-pgdump
 #!/usr/bin/env bash
 set -euo pipefail
 TS=$(date -u +%Y%m%d)
 DIR=/var/backups/deamaclub
 mkdir -p "$DIR"
-sudo -u postgres pg_dump deamaclub | gzip > "$DIR/deamaclub-$TS.sql.gz"
+# DIRECT_URL is in /var/www/deamaclub/.env.production; export it for pg_dump
+source <(grep -E '^DIRECT_URL=' /var/www/deamaclub/.env.production | sed 's/^/export /')
+pg_dump "$DIRECT_URL" | gzip > "$DIR/deamaclub-$TS.sql.gz"
 find "$DIR" -mtime +14 -delete
 CRON
 sudo chmod +x /etc/cron.daily/deamaclub-pgdump
