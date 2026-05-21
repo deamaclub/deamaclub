@@ -1,19 +1,58 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useSession } from "next-auth/react";
+import { Heart, MessageSquare, CornerDownRight } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
+import { useAuthModal } from "./AuthModalProvider";
 
-interface Comment {
+interface CommentNode {
   id: string;
-  author: string;
+  parentId: string | null;
   body: string;
   createdAt: string;
+  likeCount: number;
+  username: string;
+  likedByMe: boolean;
+}
+
+interface CommentTree extends CommentNode {
+  children: CommentTree[];
+}
+
+function buildTree(flat: CommentNode[]): CommentTree[] {
+  const map = new Map<string, CommentTree>();
+  flat.forEach((c) => map.set(c.id, { ...c, children: [] }));
+  const roots: CommentTree[] = [];
+  flat.forEach((c) => {
+    const node = map.get(c.id)!;
+    if (c.parentId && map.has(c.parentId)) {
+      map.get(c.parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  // Top-level: newest first. Replies: oldest first (chronological conversation flow)
+  roots.sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  function sortReplies(node: CommentTree) {
+    node.children.sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    node.children.forEach(sortReplies);
+  }
+  roots.forEach(sortReplies);
+  return roots;
 }
 
 export default function Comments({ postId }: { postId: string }) {
-  const [comments, setComments] = useState<Comment[]>([]);
+  const { data: session, status } = useSession();
+  const { openModal } = useAuthModal();
+  const [comments, setComments] = useState<CommentNode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [author, setAuthor] = useState("");
   const [body, setBody] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +61,7 @@ export default function Comments({ postId }: { postId: string }) {
     let cancelled = false;
     fetch(`/api/comments?postId=${postId}`)
       .then((r) => r.json())
-      .then((d: { comments: Comment[] }) => {
+      .then((d: { comments: CommentNode[] }) => {
         if (!cancelled) setComments(d.comments || []);
       })
       .catch(() => {})
@@ -32,50 +71,123 @@ export default function Comments({ postId }: { postId: string }) {
     };
   }, [postId]);
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
+  // Re-fetch likedByMe state when auth status changes (sign-in/out)
+  useEffect(() => {
+    if (status === "loading") return;
+    fetch(`/api/comments?postId=${postId}`)
+      .then((r) => r.json())
+      .then((d: { comments: CommentNode[] }) => setComments(d.comments || []))
+      .catch(() => {});
+  }, [postId, status]);
+
+  const tree = useMemo(() => buildTree(comments), [comments]);
+
+  function postComment(text: string, parentId: string | null) {
     setError(null);
-    if (!author.trim() || !body.trim()) return;
     startTransition(async () => {
       const res = await fetch("/api/comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId, author, body }),
+        body: JSON.stringify({ postId, body: text, parentId }),
       });
-      if (!res.ok) {
-        setError("Could not post comment.");
+      if (res.status === 401) {
+        openModal({
+          mode: "signup",
+          after: () => postComment(text, parentId),
+        });
         return;
       }
-      const { comment } = (await res.json()) as { comment: Comment };
-      setComments((c) => [comment, ...c]);
-      setBody("");
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(j.error || "Couldn't post comment.");
+        return;
+      }
+      const { comment } = (await res.json()) as { comment: CommentNode };
+      setComments((prev) => [comment, ...prev]);
+      if (!parentId) setBody("");
     });
   }
+
+  async function toggleLike(commentId: string) {
+    if (!session?.user) {
+      openModal({ mode: "signup", after: () => toggleLike(commentId) });
+      return;
+    }
+    // Optimistic
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId
+          ? {
+              ...c,
+              likedByMe: !c.likedByMe,
+              likeCount: c.likeCount + (c.likedByMe ? -1 : 1),
+            }
+          : c
+      )
+    );
+    const res = await fetch(`/api/comments/${commentId}/like`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      // Revert
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? {
+                ...c,
+                likedByMe: !c.likedByMe,
+                likeCount: c.likeCount + (c.likedByMe ? -1 : 1),
+              }
+            : c
+        )
+      );
+      return;
+    }
+    const data = (await res.json()) as { liked: boolean; likeCount: number };
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId
+          ? { ...c, likedByMe: data.liked, likeCount: data.likeCount }
+          : c
+      )
+    );
+  }
+
+  function onTopLevelSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = body.trim();
+    if (!text) return;
+    if (!session?.user) {
+      openModal({
+        mode: "signup",
+        after: () => postComment(text, null),
+      });
+      return;
+    }
+    postComment(text, null);
+  }
+
+  const totalCount = comments.length;
 
   return (
     <section className="mt-8" aria-label="Comments">
       <h2 className="font-display tracking-wider text-2xl mb-4 text-deama-gold-bright">
         COMMENTS{" "}
-        <span className="text-deama-muted text-base">({comments.length})</span>
+        <span className="text-deama-muted text-base">({totalCount})</span>
       </h2>
 
       <form
-        onSubmit={submit}
+        onSubmit={onTopLevelSubmit}
         className="bg-deama-ink border border-deama-border rounded-lg p-4 mb-6"
       >
-        <input
-          type="text"
-          required
-          maxLength={40}
-          placeholder="Your name"
-          value={author}
-          onChange={(e) => setAuthor(e.target.value)}
-          className="w-full bg-deama-black border border-deama-border rounded px-3 py-2 mb-2 text-sm focus:outline-none focus:border-deama-red"
-        />
         <textarea
           required
           maxLength={2000}
-          placeholder="Drop a comment…"
+          placeholder={
+            session?.user
+              ? `Comment as @${session.user.username}…`
+              : "Sign in to comment…"
+          }
           rows={3}
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -93,31 +205,134 @@ export default function Comments({ postId }: { postId: string }) {
 
       {loading ? (
         <p className="text-deama-muted text-sm">Loading comments…</p>
-      ) : comments.length === 0 ? (
+      ) : tree.length === 0 ? (
         <p className="text-deama-muted text-sm">
           No comments yet. Be the first.
         </p>
       ) : (
         <ul className="space-y-4">
-          {comments.map((c) => (
-            <li
+          {tree.map((c) => (
+            <CommentNodeView
               key={c.id}
-              className="bg-deama-ink border border-deama-border rounded p-3"
-            >
-              <div className="flex items-center gap-2 text-xs text-deama-muted mb-1">
-                <span className="font-semibold text-deama-gold">
-                  {c.author}
-                </span>
-                <span>·</span>
-                <span>{timeAgo(c.createdAt)}</span>
-              </div>
-              <p className="text-sm whitespace-pre-wrap break-words">
-                {c.body}
-              </p>
-            </li>
+              node={c}
+              depth={0}
+              onReply={(text) => postComment(text, c.id)}
+              onLike={toggleLike}
+              postComment={postComment}
+            />
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+interface CommentNodeViewProps {
+  node: CommentTree;
+  depth: number;
+  onReply: (text: string) => void;
+  onLike: (commentId: string) => void;
+  postComment: (text: string, parentId: string) => void;
+}
+
+function CommentNodeView({
+  node,
+  depth,
+  onReply,
+  onLike,
+  postComment,
+}: CommentNodeViewProps) {
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [reply, setReply] = useState("");
+  const maxIndent = 4; // visual cap on indentation
+  const visualDepth = Math.min(depth, maxIndent);
+  const indentClass = visualDepth > 0 ? "border-l border-deama-border pl-3 md:pl-4" : "";
+
+  function submitReply(e: React.FormEvent) {
+    e.preventDefault();
+    const text = reply.trim();
+    if (!text) return;
+    postComment(text, node.id);
+    setReply("");
+    setReplyOpen(false);
+  }
+
+  return (
+    <li className={visualDepth > 0 ? `ml-3 md:ml-4 ${indentClass}` : ""}>
+      <div className="bg-deama-ink border border-deama-border rounded p-3">
+        <div className="flex items-center gap-2 text-xs text-deama-muted mb-1">
+          <span className="font-semibold text-deama-gold">@{node.username}</span>
+          <span>·</span>
+          <span>{timeAgo(node.createdAt)}</span>
+        </div>
+        <p className="text-sm whitespace-pre-wrap break-words">{node.body}</p>
+        <div className="flex items-center gap-3 mt-2 text-xs">
+          <button
+            type="button"
+            onClick={() => onLike(node.id)}
+            className={`inline-flex items-center gap-1 hover:text-deama-red transition-colors ${
+              node.likedByMe ? "text-deama-red" : "text-deama-muted"
+            }`}
+            aria-label={node.likedByMe ? "Unlike" : "Like"}
+          >
+            <Heart
+              size={13}
+              fill={node.likedByMe ? "currentColor" : "none"}
+            />
+            {node.likeCount > 0 && <span>{node.likeCount}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={() => setReplyOpen((v) => !v)}
+            className="inline-flex items-center gap-1 text-deama-muted hover:text-deama-text"
+          >
+            <MessageSquare size={13} /> Reply
+          </button>
+        </div>
+        {replyOpen && (
+          <form onSubmit={submitReply} className="mt-3">
+            <textarea
+              autoFocus
+              rows={2}
+              maxLength={2000}
+              required
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              placeholder={`Reply to @${node.username}…`}
+              className="w-full bg-deama-black border border-deama-border rounded px-3 py-2 text-sm focus:outline-none focus:border-deama-red resize-y"
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                type="submit"
+                className="bg-deama-red hover:bg-deama-red-hover text-white text-xs uppercase tracking-wider font-bold px-3 py-1.5 rounded"
+              >
+                Reply
+              </button>
+              <button
+                type="button"
+                onClick={() => setReplyOpen(false)}
+                className="text-xs text-deama-muted hover:text-deama-text px-3 py-1.5"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+      {node.children.length > 0 && (
+        <ul className="mt-3 space-y-3">
+          {node.children.map((c) => (
+            <CommentNodeView
+              key={c.id}
+              node={c}
+              depth={depth + 1}
+              onReply={() => {}}
+              onLike={onLike}
+              postComment={postComment}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
