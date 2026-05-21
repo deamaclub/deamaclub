@@ -94,7 +94,7 @@ export default function SideMenu() {
           </button>
         </div>
 
-        {status === "authenticated" && session?.user && (
+        {status === "authenticated" && (
           <div className="px-4 py-3 border-b border-deama-border">
             <p className="text-[10px] uppercase tracking-widest text-deama-muted">
               Signed in
@@ -104,7 +104,9 @@ export default function SideMenu() {
               onClick={close}
               className="text-sm font-semibold text-deama-gold-bright hover:text-deama-red"
             >
-              @{session.user.username}
+              {session?.user?.username
+                ? `@${session.user.username}`
+                : session?.user?.name || session?.user?.email || "Your account"}
             </Link>
           </div>
         )}

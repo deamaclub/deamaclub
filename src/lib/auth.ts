@@ -39,6 +39,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        // Fresh sign-in: copy fields from the authorize() return
         const u = user as {
           id: string;
           username?: string;
@@ -47,6 +48,22 @@ export const authOptions: NextAuthOptions = {
         token.id = u.id;
         token.username = u.username ?? "";
         token.role = u.role ?? "USER";
+      } else if (
+        token.sub &&
+        (!token.id || !token.username || !token.role)
+      ) {
+        // Older JWTs may be missing fields we added after they were
+        // issued. Backfill from the DB once; subsequent requests use
+        // the cached values in the refreshed token.
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { id: true, username: true, role: true },
+        });
+        if (fresh) {
+          token.id = fresh.id;
+          token.username = fresh.username;
+          token.role = fresh.role;
+        }
       }
       return token;
     },
