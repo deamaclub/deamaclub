@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { Inter, Anton } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AdSlot from "@/components/AdSlot";
 import Providers from "@/components/Providers";
+
+const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 
 const inter = Inter({
   subsets: ["latin"],
@@ -61,7 +64,21 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${inter.variable} ${anton.variable}`}>
+      <head>
+        {ADSENSE_CLIENT && (
+          <meta name="google-adsense-account" content={ADSENSE_CLIENT} />
+        )}
+      </head>
       <body className="bg-deama-black text-deama-text min-h-screen flex flex-col">
+        {ADSENSE_CLIENT && (
+          <Script
+            id="adsense-loader"
+            async
+            strategy="afterInteractive"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
+            crossOrigin="anonymous"
+          />
+        )}
         <Providers>
           <Header />
           <div className="w-full bg-deama-ink border-b border-deama-border">
