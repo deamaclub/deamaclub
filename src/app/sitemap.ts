@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORIES } from "@/lib/categories";
 import { absoluteUrl } from "@/lib/utils";
 
+// Re-generate the sitemap at most every 5 minutes so newly published
+// posts show up for Search Console / AdSense crawlers without a redeploy.
+export const revalidate = 300;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await prisma.post.findMany({
     where: { published: true },
