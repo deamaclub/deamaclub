@@ -1,17 +1,20 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { getRelatedPosts } from "@/lib/posts";
+import { authOptions } from "@/lib/auth";
 import VideoPlayer from "@/components/VideoPlayer";
-import ShareButtons from "@/components/ShareButtons";
+import PostInteractionBar from "@/components/PostInteractionBar";
 import Comments from "@/components/Comments";
 import VideoCard from "@/components/VideoCard";
 import AdSlot from "@/components/AdSlot";
 import { absoluteUrl, timeAgo, formatViews } from "@/lib/utils";
 import { Eye, Clock } from "lucide-react";
 
-export const revalidate = 30;
+// Disable static caching: we need session-aware `likedByMe` per request.
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: { slug: string };
@@ -23,6 +26,7 @@ async function loadPost(slug: string) {
     include: {
       category: { select: { name: true, slug: true, id: true } },
       tags: { select: { name: true, slug: true } },
+      _count: { select: { comments: true } },
     },
   });
 }
@@ -57,11 +61,20 @@ export async function generateMetadata({
 }
 
 export default async function VideoPage({ params }: PageProps) {
-  const post = await loadPost(params.slug);
+  const [post, session] = await Promise.all([
+    loadPost(params.slug),
+    getServerSession(authOptions),
+  ]);
   if (!post || !post.published) notFound();
 
-  const [related] = await Promise.all([
+  const [related, myLike] = await Promise.all([
     getRelatedPosts(post.id, post.category.id, 8),
+    session?.user?.id
+      ? prisma.postLike.findUnique({
+          where: { postId_userId: { postId: post.id, userId: session.user.id } },
+          select: { id: true },
+        })
+      : Promise.resolve(null),
   ]);
   const url = absoluteUrl(`/video/${post.slug}`);
 
@@ -77,11 +90,18 @@ export default async function VideoPage({ params }: PageProps) {
       : undefined,
     embedUrl: post.embedUrl || undefined,
     contentUrl: post.videoUrl || undefined,
-    interactionStatistic: {
-      "@type": "InteractionCounter",
-      interactionType: { "@type": "WatchAction" },
-      userInteractionCount: post.viewCount,
-    },
+    interactionStatistic: [
+      {
+        "@type": "InteractionCounter",
+        interactionType: { "@type": "WatchAction" },
+        userInteractionCount: post.viewCount,
+      },
+      {
+        "@type": "InteractionCounter",
+        interactionType: { "@type": "LikeAction" },
+        userInteractionCount: post.likeCount,
+      },
+    ],
     publisher: {
       "@type": "Organization",
       name: "Deamaclub",
@@ -108,6 +128,20 @@ export default async function VideoPage({ params }: PageProps) {
           videoUrl={post.videoUrl}
           thumbnailUrl={post.thumbnailUrl}
           title={post.title}
+          relatedPosts={related.slice(0, 2).map((r) => ({
+            slug: r.slug,
+            title: r.title,
+            thumbnailUrl: r.thumbnailUrl,
+          }))}
+        />
+
+        <PostInteractionBar
+          postId={post.id}
+          url={url}
+          title={post.title}
+          initialLikeCount={post.likeCount}
+          initialLikedByMe={Boolean(myLike)}
+          commentCount={post._count.comments}
         />
 
         <header className="mt-4">
@@ -136,13 +170,11 @@ export default async function VideoPage({ params }: PageProps) {
           </p>
         )}
 
-        <div className="mt-4">
-          <ShareButtons url={url} title={post.title} />
-        </div>
-
         <AdSlot id="article-mid" size="in-article" className="my-6" />
 
-        <Comments postId={post.id} />
+        <div id="comments">
+          <Comments postId={post.id} />
+        </div>
 
         <AdSlot id="article-bottom" size="leaderboard" className="mt-8" />
       </div>
