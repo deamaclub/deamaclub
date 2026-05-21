@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useSession } from "next-auth/react";
-import { Heart, MessageSquare, CornerDownRight } from "lucide-react";
+import { Heart, MessageSquare } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
 import { useAuthModal } from "./AuthModalProvider";
 
@@ -216,7 +216,6 @@ export default function Comments({ postId }: { postId: string }) {
               key={c.id}
               node={c}
               depth={0}
-              onReply={(text) => postComment(text, c.id)}
               onLike={toggleLike}
               postComment={postComment}
             />
@@ -230,7 +229,6 @@ export default function Comments({ postId }: { postId: string }) {
 interface CommentNodeViewProps {
   node: CommentTree;
   depth: number;
-  onReply: (text: string) => void;
   onLike: (commentId: string) => void;
   postComment: (text: string, parentId: string) => void;
 }
@@ -238,7 +236,6 @@ interface CommentNodeViewProps {
 function CommentNodeView({
   node,
   depth,
-  onReply,
   onLike,
   postComment,
 }: CommentNodeViewProps) {
@@ -326,7 +323,6 @@ function CommentNodeView({
               key={c.id}
               node={c}
               depth={depth + 1}
-              onReply={() => {}}
               onLike={onLike}
               postComment={postComment}
             />
