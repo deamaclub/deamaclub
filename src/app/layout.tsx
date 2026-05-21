@@ -7,6 +7,7 @@ import AdSlot from "@/components/AdSlot";
 import Providers from "@/components/Providers";
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 const inter = Inter({
   subsets: ["latin"],
@@ -67,6 +68,29 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${anton.variable}`}>
       <head>
+        {GA_ID && (
+          <>
+            {/* Google Analytics 4 — gtag.js loader + inline config.
+                Plain <script> tags rendered into SSR <head> so they're
+                in the initial HTML (Mediavine + AdSense readers want
+                this; lazy-loaded analytics doesn't count toward GA's
+                real-time view for some bot checks). */}
+            <script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${GA_ID}');
+`,
+              }}
+            />
+          </>
+        )}
         {ADSENSE_CLIENT && (
           <>
             <meta name="google-adsense-account" content={ADSENSE_CLIENT} />
