@@ -76,110 +76,112 @@ export default function SideMenu() {
         role="dialog"
         aria-modal="true"
         aria-label="Site menu"
-        className={`fixed inset-y-0 left-0 z-50 w-72 md:w-80 bg-deama-ink border-r border-deama-border shadow-glow transform transition-transform duration-300 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 md:w-80 bg-deama-ink border-r border-deama-border shadow-glow transform transition-transform duration-300 overflow-y-auto ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-deama-border">
-          <span className="font-display text-xl tracking-wider text-deama-gold-bright leading-none">
-            DEAMA<span className="text-deama-red">CLUB</span>
-          </span>
-          <button
-            type="button"
-            onClick={close}
-            aria-label="Close menu"
-            className="inline-flex items-center justify-center w-8 h-8 rounded text-deama-muted hover:text-deama-red"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {status === "authenticated" && (
-          <div className="px-4 py-3 border-b border-deama-border">
-            <p className="text-[10px] uppercase tracking-widest text-deama-muted">
-              Signed in
-            </p>
-            <Link
-              href="/account"
+        <div className="min-h-full flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-deama-border">
+            <span className="font-display text-xl tracking-wider text-deama-gold-bright leading-none">
+              DEAMA<span className="text-deama-red">CLUB</span>
+            </span>
+            <button
+              type="button"
               onClick={close}
-              className="text-sm font-semibold text-deama-gold-bright hover:text-deama-red"
+              aria-label="Close menu"
+              className="inline-flex items-center justify-center w-8 h-8 rounded text-deama-muted hover:text-deama-red"
             >
-              {session?.user?.username
-                ? `@${session.user.username}`
-                : session?.user?.name || session?.user?.email || "Your account"}
-            </Link>
+              <X size={18} />
+            </button>
           </div>
-        )}
 
-        <nav className="flex-1 overflow-y-auto">
-          <ul>
-            <li>
-              <Link href="/" onClick={close} className={ITEM_CLASSES}>
-                <Home size={16} /> Latest
-              </Link>
-            </li>
-            {visibleCategories.map((c) => (
-              <li key={c.slug}>
-                <Link
-                  href={`/category/${c.slug}`}
-                  onClick={close}
-                  className={ITEM_CLASSES}
-                >
-                  <span
-                    aria-hidden
-                    className="inline-block w-2 h-2 bg-deama-red rounded-full"
-                  />
-                  {c.name}
-                </Link>
-              </li>
-            ))}
-            <li className="border-t border-deama-border mt-2 pt-2">
+          {status === "authenticated" && (
+            <div className="px-4 py-3 border-b border-deama-border">
+              <p className="text-[10px] uppercase tracking-widest text-deama-muted">
+                Signed in
+              </p>
               <Link
                 href="/account"
                 onClick={close}
-                className={ITEM_CLASSES}
+                className="text-sm font-semibold text-deama-gold-bright hover:text-deama-red"
               >
-                <User size={16} /> Account
+                {session?.user?.username
+                  ? `@${session.user.username}`
+                  : session?.user?.name || session?.user?.email || "Your account"}
               </Link>
-            </li>
-            {isAdmin && (
+            </div>
+          )}
+
+          <nav>
+            <ul>
               <li>
+                <Link href="/" onClick={close} className={ITEM_CLASSES}>
+                  <Home size={16} /> Latest
+                </Link>
+              </li>
+              {visibleCategories.map((c) => (
+                <li key={c.slug}>
+                  <Link
+                    href={`/category/${c.slug}`}
+                    onClick={close}
+                    className={ITEM_CLASSES}
+                  >
+                    <span
+                      aria-hidden
+                      className="inline-block w-2 h-2 bg-deama-red rounded-full"
+                    />
+                    {c.name}
+                  </Link>
+                </li>
+              ))}
+              <li className="border-t border-deama-border mt-2 pt-2">
                 <Link
-                  href="/admin"
+                  href="/account"
                   onClick={close}
                   className={ITEM_CLASSES}
                 >
-                  <Shield size={16} /> Admin
+                  <User size={16} /> Account
                 </Link>
               </li>
-            )}
-          </ul>
-        </nav>
+              {isAdmin && (
+                <li>
+                  <Link
+                    href="/admin"
+                    onClick={close}
+                    className={ITEM_CLASSES}
+                  >
+                    <Shield size={16} /> Admin
+                  </Link>
+                </li>
+              )}
+            </ul>
+          </nav>
 
-        <div className="border-t border-deama-border p-3">
-          {status === "authenticated" ? (
-            <button
-              type="button"
-              onClick={() => {
-                close();
-                signOut({ callbackUrl: "/" });
-              }}
-              className="w-full inline-flex items-center justify-center gap-2 bg-deama-surface hover:bg-deama-red hover:text-white border border-deama-border rounded px-3 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors"
-            >
-              <LogOut size={14} /> Sign out
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                close();
-                openModal({ mode: "signin" });
-              }}
-              className="w-full inline-flex items-center justify-center gap-2 bg-deama-red hover:bg-deama-red-hover text-white rounded px-3 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors"
-            >
-              <LogIn size={14} /> Sign in
-            </button>
-          )}
+          <div className="mt-auto border-t border-deama-border p-3">
+            {status === "authenticated" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  close();
+                  signOut({ callbackUrl: "/" });
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 bg-deama-surface hover:bg-deama-red hover:text-white border border-deama-border rounded px-3 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors"
+              >
+                <LogOut size={14} /> Sign out
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  close();
+                  openModal({ mode: "signin" });
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 bg-deama-red hover:bg-deama-red-hover text-white rounded px-3 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors"
+              >
+                <LogIn size={14} /> Sign in
+              </button>
+            )}
+          </div>
         </div>
       </aside>
     </>
