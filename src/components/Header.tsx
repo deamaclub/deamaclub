@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Suspense } from "react";
 import SearchBar from "./SearchBar";
 import CategoryNav from "./CategoryNav";
+import HeaderAccount from "./HeaderAccount";
 
 export default function Header() {
   return (
@@ -29,6 +30,8 @@ export default function Header() {
         >
           <SearchBar className="flex-1 max-w-xl ml-auto md:ml-8" />
         </Suspense>
+
+        <HeaderAccount />
 
         <Link
           href="/admin"

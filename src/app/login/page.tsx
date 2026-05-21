@@ -3,12 +3,13 @@
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import Link from "next/link";
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = params.get("callbackUrl") || "/admin";
-  const [email, setEmail] = useState("");
+  const callbackUrl = params.get("callbackUrl") || "/";
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,14 +19,14 @@ function LoginForm() {
     setLoading(true);
     setError(null);
     const res = await signIn("credentials", {
-      email,
+      identifier,
       password,
       redirect: false,
       callbackUrl,
     });
     setLoading(false);
     if (!res || res.error) {
-      setError("Invalid email or password.");
+      setError("Wrong username/email or password.");
       return;
     }
     router.push(callbackUrl);
@@ -38,19 +39,20 @@ function LoginForm() {
         <h1 className="font-display text-3xl tracking-wide text-deama-gold-bright mb-1">
           DEAMACLUB
         </h1>
-        <p className="text-sm text-deama-muted mb-6">Admin sign in</p>
+        <p className="text-sm text-deama-muted mb-6">Sign in</p>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="block text-xs uppercase tracking-wider text-deama-muted mb-1">
-              Email
+              Username or email
             </label>
             <input
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               className="w-full bg-deama-black border border-deama-border rounded px-3 py-2 focus:outline-none focus:border-deama-red"
-              autoComplete="email"
+              autoComplete="username"
+              autoFocus
             />
           </div>
           <div>
@@ -79,6 +81,12 @@ function LoginForm() {
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
+        <p className="text-xs text-deama-muted mt-6 text-center">
+          No account?{" "}
+          <Link href="/account" className="text-deama-red hover:underline">
+            Create one
+          </Link>
+        </p>
       </div>
     </div>
   );

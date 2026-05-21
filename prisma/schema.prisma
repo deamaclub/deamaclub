@@ -15,18 +15,32 @@ datasource db {
 
 model User {
   id        String   @id @default(cuid())
-  email     String   @unique
+  // Email is optional for public users (account signup doesn't require one).
+  // Still unique when set so admins can keep using email-based login.
+  email     String?  @unique
+  // Public-facing handle. Required, unique, lowercase. Used as the
+  // primary login identifier for non-admin accounts.
+  username  String   @unique
   name      String?
   password  String
-  role      Role     @default(ADMIN)
+  role      Role     @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  posts     Post[]
+
+  posts             Post[]
+  comments          Comment[]
+  postLikes         PostLike[]
+  commentLikes      CommentLike[]
+  // Notifications addressed to this user
+  notifications     Notification[] @relation("notificationRecipient")
+  // Notifications this user triggered (e.g. they liked or replied)
+  actorNotifications Notification[] @relation("notificationActor")
 }
 
 enum Role {
   ADMIN
   EDITOR
+  USER
 }
 
 model Category {
@@ -49,7 +63,6 @@ model Post {
   slug          String     @unique
   title         String
   description   String?
-  // Either an embed URL (YouTube/Cloudflare Stream iframe) OR a direct video URL.
   embedUrl      String?
   videoUrl      String?
   thumbnailUrl  String?
@@ -57,6 +70,9 @@ model Post {
   published     Boolean    @default(false)
   trending      Boolean    @default(false)
   viewCount     Int        @default(0)
+  // Denormalised like count for fast list-page reads. Source of truth
+  // is PostLike rows; this column is updated in the like API transaction.
+  likeCount     Int        @default(0)
   publishedAt   DateTime?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -67,6 +83,7 @@ model Post {
   tags          Tag[]      @relation("PostTags")
   comments      Comment[]
   views         View[]
+  likes         PostLike[]
 
   @@index([published, publishedAt(sort: Desc)])
   @@index([categoryId, published, publishedAt(sort: Desc)])
@@ -90,10 +107,72 @@ model Comment {
   id        String   @id @default(cuid())
   postId    String
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  // userId is nullable so legacy comments (string author only) still
+  // resolve. New comments require an account so this is set in practice.
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Cached display name (kept even if user deletes account).
   author    String
   body      String
-  approved  Boolean  @default(true)
+  // Threading: parentId NULL = top-level, otherwise points at parent comment.
+  parentId  String?
+  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[]  @relation("CommentReplies")
+  // Denormalised like count for fast read.
+  likeCount Int        @default(0)
+  likes     CommentLike[]
+  notifications Notification[]
+  approved  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+
+  @@index([postId, parentId, createdAt(sort: Desc)])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
-  @@index([postId, createdAt(sort: Desc)])
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
+  @@index([userId])
+}
+
+enum NotificationType {
+  COMMENT_REPLY
+  COMMENT_LIKE
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  type        NotificationType
+  recipientId String
+  recipient   User     @relation("notificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String
+  actor       User     @relation("notificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  commentId   String?
+  comment     Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  // Cache of the post slug at notification creation time so we can
+  // build a link target without a JOIN every poll.
+  postSlug    String?
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([recipientId, read, createdAt(sort: Desc)])
 }
