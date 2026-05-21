@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter, Anton } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -69,19 +68,21 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${anton.variable}`}>
       <head>
         {ADSENSE_CLIENT && (
-          <meta name="google-adsense-account" content={ADSENSE_CLIENT} />
+          <>
+            <meta name="google-adsense-account" content={ADSENSE_CLIENT} />
+            {/* Plain <script> rendered into SSR <head> so the AdSense
+                verifier (which doesn't execute JS) finds it on first
+                fetch. next/script's strategies emit a preload link
+                instead, which doesn't satisfy verification. */}
+            <script
+              async
+              src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
+              crossOrigin="anonymous"
+            />
+          </>
         )}
       </head>
       <body className="bg-deama-black text-deama-text min-h-screen flex flex-col">
-        {ADSENSE_CLIENT && (
-          <Script
-            id="adsense-loader"
-            async
-            strategy="afterInteractive"
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
-            crossOrigin="anonymous"
-          />
-        )}
         <Providers>
           <Header />
           <div className="w-full bg-deama-ink border-b border-deama-border">
