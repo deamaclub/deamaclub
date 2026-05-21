@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -20,8 +21,12 @@ const ITEM_CLASSES =
 
 export default function SideMenu() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { data: session, status } = useSession();
   const { openModal } = useAuthModal();
+
+  // Only render the portal after mount (avoids SSR document access)
+  useEffect(() => setMounted(true), []);
 
   // Lock body scroll while open
   useEffect(() => {
@@ -44,29 +49,20 @@ export default function SideMenu() {
   }, [open]);
 
   const visibleCategories = CATEGORIES.filter((c) => c.slug !== "sports");
-  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR";
+  const isAdmin =
+    session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR";
 
   function close() {
     setOpen(false);
   }
 
-  return (
+  const drawer = (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Open menu"
-        aria-expanded={open}
-        className="inline-flex items-center justify-center w-9 h-9 rounded text-deama-muted hover:text-deama-gold-bright transition-colors shrink-0"
-      >
-        <Menu size={20} />
-      </button>
-
       {/* Backdrop */}
       <div
         aria-hidden
         onClick={close}
-        className={`fixed inset-0 z-40 bg-black/70 backdrop-blur-sm transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm transition-opacity duration-200 ${
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       />
@@ -76,7 +72,7 @@ export default function SideMenu() {
         role="dialog"
         aria-modal="true"
         aria-label="Site menu"
-        className={`fixed inset-y-0 left-0 z-50 w-72 md:w-80 bg-deama-ink border-r border-deama-border shadow-glow transform transition-transform duration-300 overflow-y-auto ${
+        className={`fixed inset-y-0 left-0 z-[70] w-72 md:w-80 bg-deama-ink border-r border-deama-border shadow-glow transform transition-transform duration-300 overflow-y-auto ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -107,7 +103,9 @@ export default function SideMenu() {
               >
                 {session?.user?.username
                   ? `@${session.user.username}`
-                  : session?.user?.name || session?.user?.email || "Your account"}
+                  : session?.user?.name ||
+                    session?.user?.email ||
+                    "Your account"}
               </Link>
             </div>
           )}
@@ -135,21 +133,13 @@ export default function SideMenu() {
                 </li>
               ))}
               <li className="border-t border-deama-border mt-2 pt-2">
-                <Link
-                  href="/account"
-                  onClick={close}
-                  className={ITEM_CLASSES}
-                >
+                <Link href="/account" onClick={close} className={ITEM_CLASSES}>
                   <User size={16} /> Account
                 </Link>
               </li>
               {isAdmin && (
                 <li>
-                  <Link
-                    href="/admin"
-                    onClick={close}
-                    className={ITEM_CLASSES}
-                  >
+                  <Link href="/admin" onClick={close} className={ITEM_CLASSES}>
                     <Shield size={16} /> Admin
                   </Link>
                 </li>
@@ -184,6 +174,25 @@ export default function SideMenu() {
           </div>
         </div>
       </aside>
+    </>
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Open menu"
+        aria-expanded={open}
+        className="inline-flex items-center justify-center w-9 h-9 rounded text-deama-muted hover:text-deama-gold-bright transition-colors shrink-0"
+      >
+        <Menu size={20} />
+      </button>
+
+      {/* Portal the backdrop + drawer out to <body> so the Header's
+          backdrop-filter doesn't create a containing block that traps
+          our `position: fixed` inside the header. */}
+      {mounted && createPortal(drawer, document.body)}
     </>
   );
 }
