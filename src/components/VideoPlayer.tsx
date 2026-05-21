@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -20,15 +20,22 @@ interface VideoPlayerProps {
 }
 
 /**
- * Embedded iframe player (Bunny / YouTube / etc.) or HTML5 video.
+ * Embedded iframe player (Bunny / YouTube) or HTML5 video.
  *
- * After playback ends, an overlay covers the player area with 2
- * clickable thumbnails for the next videos. For Bunny / YouTube the
- * `ended` event arrives via postMessage from the iframe (Player.js
- * protocol Bunny uses). For HTML5 video we listen on the element.
+ * For Bunny Stream embeds we speak Player.js (the spec Bunny + many
+ * other embed providers implement). The protocol:
  *
- * Also fires a deduplicated view-increment to /api/views after a
- * 3.5s dwell so passive crawlers don't inflate counts.
+ *   1. Iframe sends { context: 'player.js', event: 'ready' } on load
+ *   2. Parent replies with { context: 'player.js', method:
+ *      'addEventListener', value: 'ended' } per event it wants
+ *   3. Iframe then emits { context: 'player.js', event: 'ended' } when
+ *      the video finishes
+ *
+ * Some integrations don't emit 'ready' before the parent attaches a
+ * listener, so we also send the addEventListener proactively when the
+ * iframe's `load` event fires AND retry once shortly after.
+ *
+ * For HTML5 <video>, we just listen to the native 'ended' event.
  */
 export default function VideoPlayer({
   postId,
@@ -38,6 +45,7 @@ export default function VideoPlayer({
   title,
   relatedPosts = [],
 }: VideoPlayerProps) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [showEndScreen, setShowEndScreen] = useState(false);
 
@@ -54,43 +62,85 @@ export default function VideoPlayer({
     return () => clearTimeout(t);
   }, [postId]);
 
-  // Iframe `ended` listener (Player.js / Bunny / YouTube postMessage)
+  const subscribe = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentWindow) return;
+    const msg = JSON.stringify({
+      context: "player.js",
+      version: "0.0.7",
+      method: "addEventListener",
+      value: "ended",
+      listener: "deamaclub-ended",
+    });
+    try {
+      iframe.contentWindow.postMessage(msg, "*");
+    } catch {
+      /* cross-origin restrictions — swallow */
+    }
+  }, []);
+
+  // Iframe `ended` handshake
   useEffect(() => {
     if (!embedUrl) return;
-    function onMessage(event: MessageEvent) {
-      // Accept events from common embed origins only
-      const allowed = [
-        "https://iframe.mediadelivery.net",
-        "https://www.youtube.com",
-        "https://www.youtube-nocookie.com",
-      ];
-      if (!allowed.includes(event.origin)) return;
 
-      // Bunny + most Player.js-compatible players send strings; some send objects
+    function onMessage(event: MessageEvent) {
       let data: unknown = event.data;
       if (typeof data === "string") {
         try {
           data = JSON.parse(data);
         } catch {
-          // Plain string — only act if it looks like 'ended'
+          // Plain string event (some old protocols) — best-effort
           if (event.data === "ended") setShowEndScreen(true);
           return;
         }
       }
-      if (data && typeof data === "object") {
-        const d = data as { event?: string; value?: string; method?: string };
-        if (
-          d.event === "ended" ||
-          d.value === "ended" ||
-          (d.method === "event" && d.value === "ended")
-        ) {
+      if (!data || typeof data !== "object") return;
+      const d = data as {
+        context?: string;
+        event?: string;
+        value?: string;
+        method?: string;
+        data?: { event?: string };
+      };
+
+      // Player.js — Bunny + many others
+      if (d.context === "player.js") {
+        if (d.event === "ready") {
+          // iframe is up — subscribe now
+          subscribe();
+        }
+        if (d.event === "ended") {
           setShowEndScreen(true);
         }
+        return;
+      }
+
+      // YouTube embed (uses postMessage with state object)
+      if (d.event === "onStateChange" && d.data?.event === undefined) {
+        // YouTube sends { event: 'onStateChange', info: 0 } where 0 = ended
+        const yt = data as unknown as { info?: number };
+        if (yt.info === 0) setShowEndScreen(true);
+      }
+      // Generic fallbacks
+      if (d.event === "ended" || d.value === "ended") {
+        setShowEndScreen(true);
       }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [embedUrl]);
+  }, [embedUrl, subscribe]);
+
+  // Proactive subscribe attempts (in case 'ready' was emitted before
+  // our listener attached, or the player doesn't emit one).
+  useEffect(() => {
+    if (!embedUrl) return;
+    const t1 = setTimeout(subscribe, 800);
+    const t2 = setTimeout(subscribe, 2500);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [embedUrl, subscribe]);
 
   // HTML5 video `ended` listener
   useEffect(() => {
@@ -109,11 +159,13 @@ export default function VideoPlayer({
     <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-deama-border">
       {embedUrl ? (
         <iframe
+          ref={iframeRef}
           src={embedUrl}
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
           loading="lazy"
+          onLoad={subscribe}
           className="absolute inset-0 w-full h-full"
         />
       ) : videoUrl ? (
