@@ -8,6 +8,7 @@ import Providers from "@/components/Providers";
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const GROW_SITE_ID = process.env.NEXT_PUBLIC_GROW_SITE_ID;
 
 const inter = Inter({
   subsets: ["latin"],
@@ -104,6 +105,14 @@ gtag('config', '${GA_ID}');
               crossOrigin="anonymous"
             />
           </>
+        )}
+        {GROW_SITE_ID && (
+          <script
+            data-grow-initializer=""
+            dangerouslySetInnerHTML={{
+              __html: `!(function(){window.growMe||((window.growMe=function(e){window.growMe._.push(e);}),(window.growMe._=[]));var e=document.createElement("script");(e.type="text/javascript"),(e.src="https://faves.grow.me/main.js"),(e.defer=!0),e.setAttribute("data-grow-faves-site-id","${GROW_SITE_ID}");var t=document.getElementsByTagName("script")[0];t.parentNode.insertBefore(e,t);})();`,
+            }}
+          />
         )}
       </head>
       <body className="bg-deama-black text-deama-text min-h-screen flex flex-col">
