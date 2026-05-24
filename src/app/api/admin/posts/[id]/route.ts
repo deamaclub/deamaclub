@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 const schema = z.object({
   title: z.string().min(1).max(200),
   slug: z.string().max(120).optional().default(""),
-  description: z.string().max(4000).optional().default(""),
+  description: z.string().max(20000).optional().default(""),
   embedUrl: z.string().url().optional().or(z.literal("")),
   videoUrl: z.string().url().optional().or(z.literal("")),
   thumbnailUrl: z.string().url().optional().or(z.literal("")),

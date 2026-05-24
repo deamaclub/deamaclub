@@ -146,13 +146,26 @@ export default function PostForm({
       </div>
 
       <div>
-        <label className={labelCls}>Description</label>
+        <div className="flex items-baseline justify-between mb-1">
+          <label className={labelCls}>Description</label>
+          <span className="text-[10px] text-deama-muted">
+            {form.description.length.toLocaleString()} / 20,000 chars
+            {form.description.trim().length > 0 && (
+              <>
+                {" · "}
+                {form.description.trim().split(/\s+/).length.toLocaleString()}{" "}
+                words
+              </>
+            )}
+          </span>
+        </div>
         <textarea
-          rows={4}
-          maxLength={4000}
+          rows={12}
+          maxLength={20000}
           value={form.description}
           onChange={(e) => update("description", e.target.value)}
-          className={`${inputCls} resize-y`}
+          className={`${inputCls} resize-y min-h-[200px]`}
+          placeholder="Long-form description. Use blank lines between paragraphs &mdash; each paragraph break inserts an ad slot every 3 paragraphs on the video page."
         />
       </div>
 

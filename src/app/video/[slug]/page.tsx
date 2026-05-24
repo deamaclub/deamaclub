@@ -165,9 +165,41 @@ export default async function VideoPage({ params }: PageProps) {
         </header>
 
         {post.description && (
-          <p className="mt-4 text-sm text-deama-text/90 whitespace-pre-wrap leading-relaxed">
-            {post.description}
-          </p>
+          <div className="mt-5 text-[15px] text-deama-text/90 leading-relaxed space-y-4">
+            {(() => {
+              // Split on blank lines so admins can paragraph-break by hitting Enter twice.
+              const paragraphs = post.description
+                .split(/\n\s*\n+/)
+                .map((p) => p.trim())
+                .filter(Boolean);
+              const AD_EVERY = 3;
+              const nodes: React.ReactNode[] = [];
+              paragraphs.forEach((para, i) => {
+                nodes.push(
+                  <p
+                    key={`p-${i}`}
+                    className="whitespace-pre-wrap break-words"
+                  >
+                    {para}
+                  </p>
+                );
+                const isLast = i === paragraphs.length - 1;
+                if (!isLast && (i + 1) % AD_EVERY === 0) {
+                  // Single zone id ('article-inline') for all inline slots so
+                  // one AdSense ad unit / Mediavine container fills them all.
+                  nodes.push(
+                    <AdSlot
+                      key={`ad-${i}`}
+                      id="article-inline"
+                      size="in-article"
+                      className="my-2"
+                    />
+                  );
+                }
+              });
+              return nodes;
+            })()}
+          </div>
         )}
 
         <AdSlot id="article-mid" size="in-article" className="my-6" />
