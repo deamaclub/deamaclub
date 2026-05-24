@@ -172,7 +172,7 @@ export default async function VideoPage({ params }: PageProps) {
                 .split(/\n\s*\n+/)
                 .map((p) => p.trim())
                 .filter(Boolean);
-              const AD_EVERY = 3;
+              const AD_EVERY = 1; // ad after every paragraph (except the last)
               const nodes: React.ReactNode[] = [];
               paragraphs.forEach((para, i) => {
                 nodes.push(
