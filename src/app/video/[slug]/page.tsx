@@ -167,29 +167,38 @@ export default async function VideoPage({ params }: PageProps) {
         {post.description && (
           <div className="mt-5 text-[15px] text-deama-text/90 leading-relaxed space-y-4">
             {(() => {
-              // Split on blank lines so admins can paragraph-break by hitting Enter twice.
-              const paragraphs = post.description
-                .split(/\n\s*\n+/)
-                .map((p) => p.trim())
+              // Rendering rules:
+              //   single \n        → line break inside a paragraph (kept via whitespace-pre-wrap)
+              //   \n\n (1 blank)   → paragraph break, NO ad
+              //   \n\n\n+ (2+blank)→ paragraph break, ad here
+              //
+              // So we first split into "ad sections" by 3+ newlines, then
+              // within each section split into paragraphs by exactly 2 newlines.
+              const sections = post.description
+                .split(/\n{3,}/)
+                .map((s) => s.trim())
                 .filter(Boolean);
-              const AD_EVERY = 1; // ad after every paragraph (except the last)
               const nodes: React.ReactNode[] = [];
-              paragraphs.forEach((para, i) => {
-                nodes.push(
-                  <p
-                    key={`p-${i}`}
-                    className="whitespace-pre-wrap break-words"
-                  >
-                    {para}
-                  </p>
-                );
-                const isLast = i === paragraphs.length - 1;
-                if (!isLast && (i + 1) % AD_EVERY === 0) {
-                  // Single zone id ('article-inline') for all inline slots so
-                  // one AdSense ad unit / Mediavine container fills them all.
+              sections.forEach((section, sIdx) => {
+                const paragraphs = section
+                  .split(/\n{2}/)
+                  .map((p) => p.trim())
+                  .filter(Boolean);
+                paragraphs.forEach((para, pIdx) => {
+                  nodes.push(
+                    <p
+                      key={`p-${sIdx}-${pIdx}`}
+                      className="whitespace-pre-wrap break-words"
+                    >
+                      {para}
+                    </p>
+                  );
+                });
+                // Ad between sections (not after the last one)
+                if (sIdx < sections.length - 1) {
                   nodes.push(
                     <AdSlot
-                      key={`ad-${i}`}
+                      key={`ad-${sIdx}`}
                       id="article-inline"
                       size="in-article"
                       className="my-2"
