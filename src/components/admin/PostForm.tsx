@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { Save, Trash2 } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { Save, Trash2, Image as ImageIcon, Loader } from "lucide-react";
 import StreamUploader, {
   type StreamUploadResult,
 } from "./StreamUploader";
@@ -53,6 +53,57 @@ export default function PostForm({
     }
     const { url } = (await res.json()) as { url: string };
     update("thumbnailUrl", url);
+  }
+
+  // Inline image upload for the description (blog-style images).
+  const descRef = useRef<HTMLTextAreaElement | null>(null);
+  const inlineImageInput = useRef<HTMLInputElement | null>(null);
+  const [inlineUploading, setInlineUploading] = useState(false);
+
+  async function uploadInlineImage(file: File) {
+    setError(null);
+    setInlineUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(j.error || "Inline image upload failed.");
+        return;
+      }
+      const { url } = (await res.json()) as { url: string };
+      // Insert markdown image at the cursor inside the description textarea.
+      const ta = descRef.current;
+      const md = `![](${url})`;
+      if (!ta) {
+        update("description", (form.description || "") + "\n\n" + md + "\n\n");
+        return;
+      }
+      const start = ta.selectionStart ?? ta.value.length;
+      const end = ta.selectionEnd ?? ta.value.length;
+      const before = ta.value.slice(0, start);
+      const after = ta.value.slice(end);
+      // Pad with blank lines so the image lands on its own paragraph.
+      const needsLeadingBreak =
+        before.length > 0 && !/\n\n$/.test(before) ? "\n\n" : "";
+      const needsTrailingBreak =
+        after.length > 0 && !/^\n\n/.test(after) ? "\n\n" : "";
+      const insertion = `${needsLeadingBreak}${md}${needsTrailingBreak}`;
+      const newValue = before + insertion + after;
+      update("description", newValue);
+      // Restore cursor right after the inserted image
+      setTimeout(() => {
+        ta.focus();
+        const pos = before.length + insertion.length;
+        ta.setSelectionRange(pos, pos);
+      }, 0);
+    } finally {
+      setInlineUploading(false);
+    }
   }
 
   function submit(e: React.FormEvent) {
@@ -159,13 +210,47 @@ export default function PostForm({
             )}
           </span>
         </div>
+        <div className="flex items-center gap-2 mb-2">
+          <button
+            type="button"
+            onClick={() => inlineImageInput.current?.click()}
+            disabled={inlineUploading}
+            className="inline-flex items-center gap-1.5 bg-deama-surface hover:bg-deama-border border border-deama-border rounded px-2.5 py-1.5 text-xs disabled:opacity-60"
+          >
+            {inlineUploading ? (
+              <>
+                <Loader size={12} className="animate-spin" /> Uploading…
+              </>
+            ) : (
+              <>
+                <ImageIcon size={12} /> Insert image at cursor
+              </>
+            )}
+          </button>
+          <input
+            ref={inlineImageInput}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadInlineImage(f);
+              e.target.value = "";
+            }}
+          />
+          <span className="text-[10px] text-deama-muted">
+            Inserts <code className="text-deama-muted">![](url)</code> at the
+            cursor &mdash; renders as an inline image on the post.
+          </span>
+        </div>
         <textarea
+          ref={descRef}
           rows={12}
           maxLength={20000}
           value={form.description}
           onChange={(e) => update("description", e.target.value)}
           className={`${inputCls} resize-y min-h-[200px]`}
-          placeholder="Long-form description. Use blank lines between paragraphs &mdash; each paragraph break inserts an ad slot every 3 paragraphs on the video page."
+          placeholder="Long-form description. Enter twice = paragraph break (no ad). Enter three times = paragraph break with ad. Use the 'Insert image at cursor' button above to embed photos anywhere."
         />
       </div>
 

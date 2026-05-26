@@ -167,13 +167,83 @@ export default async function VideoPage({ params }: PageProps) {
         {post.description && (
           <div className="mt-5 text-[15px] text-deama-text/90 leading-relaxed space-y-4">
             {(() => {
-              // Rendering rules:
-              //   single \n        → line break inside a paragraph (kept via whitespace-pre-wrap)
-              //   \n\n (1 blank)   → paragraph break, NO ad
-              //   \n\n\n+ (2+blank)→ paragraph break, ad here
-              //
-              // So we first split into "ad sections" by 3+ newlines, then
-              // within each section split into paragraphs by exactly 2 newlines.
+              // Description rules:
+              //   single \n        → line break inside a paragraph
+              //   \n\n             → paragraph break, NO ad
+              //   \n\n\n+          → paragraph break, ad here
+              //   ![](url)         → inline image. If the paragraph is ONLY
+              //                      an image, render as a standalone figure;
+              //                      if mixed with text, render inline.
+              const IMG_RE = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
+
+              function renderParagraph(
+                para: string,
+                key: string
+              ): React.ReactNode {
+                const onlyImageMatch = para.match(
+                  /^!\[([^\]]*)\]\(([^)\s]+)\)$/
+                );
+                if (onlyImageMatch) {
+                  const [, alt, url] = onlyImageMatch;
+                  return (
+                    <figure key={key} className="my-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={alt}
+                        loading="lazy"
+                        className="w-full h-auto rounded border border-deama-border"
+                      />
+                      {alt && (
+                        <figcaption className="text-xs text-deama-muted mt-1.5 text-center">
+                          {alt}
+                        </figcaption>
+                      )}
+                    </figure>
+                  );
+                }
+                // Mixed text + (optionally) inline images
+                const parts: React.ReactNode[] = [];
+                let lastIdx = 0;
+                let m: RegExpExecArray | null;
+                IMG_RE.lastIndex = 0;
+                let i = 0;
+                while ((m = IMG_RE.exec(para)) !== null) {
+                  if (m.index > lastIdx) {
+                    parts.push(
+                      <span key={`${key}-t-${i}`}>
+                        {para.slice(lastIdx, m.index)}
+                      </span>
+                    );
+                  }
+                  parts.push(
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      key={`${key}-img-${i}`}
+                      src={m[2]}
+                      alt={m[1]}
+                      loading="lazy"
+                      className="my-2 max-w-full h-auto rounded border border-deama-border"
+                    />
+                  );
+                  lastIdx = m.index + m[0].length;
+                  i++;
+                }
+                if (lastIdx < para.length) {
+                  parts.push(
+                    <span key={`${key}-t-final`}>
+                      {para.slice(lastIdx)}
+                    </span>
+                  );
+                }
+                if (parts.length === 0) return null;
+                return (
+                  <p key={key} className="whitespace-pre-wrap break-words">
+                    {parts}
+                  </p>
+                );
+              }
+
               const sections = post.description
                 .split(/\n{3,}/)
                 .map((s) => s.trim())
@@ -185,16 +255,9 @@ export default async function VideoPage({ params }: PageProps) {
                   .map((p) => p.trim())
                   .filter(Boolean);
                 paragraphs.forEach((para, pIdx) => {
-                  nodes.push(
-                    <p
-                      key={`p-${sIdx}-${pIdx}`}
-                      className="whitespace-pre-wrap break-words"
-                    >
-                      {para}
-                    </p>
-                  );
+                  const node = renderParagraph(para, `p-${sIdx}-${pIdx}`);
+                  if (node) nodes.push(node);
                 });
-                // Ad between sections (not after the last one)
                 if (sIdx < sections.length - 1) {
                   nodes.push(
                     <AdSlot
