@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
 import { Heart, MessageSquare } from "lucide-react";
 import ShareMenu from "./ShareMenu";
-import { useAuthModal } from "./AuthModalProvider";
 import { formatViews } from "@/lib/utils";
 
 interface PostInteractionBarProps {
@@ -12,7 +10,9 @@ interface PostInteractionBarProps {
   url: string;
   title: string;
   initialLikeCount: number;
-  initialLikedByMe: boolean;
+  /** Kept for backward compatibility with the video page; ignored now
+      that likes are unauthenticated + pure-counter. */
+  initialLikedByMe?: boolean;
   commentCount: number;
 }
 
@@ -21,35 +21,25 @@ export default function PostInteractionBar({
   url,
   title,
   initialLikeCount,
-  initialLikedByMe,
   commentCount,
 }: PostInteractionBarProps) {
-  const { data: session } = useSession();
-  const { openModal } = useAuthModal();
   const [likeCount, setLikeCount] = useState(initialLikeCount);
-  const [liked, setLiked] = useState(initialLikedByMe);
+  const [pulseKey, setPulseKey] = useState(0);
   const [pending, setPending] = useState(false);
 
-  async function toggleLike() {
-    if (!session?.user) {
-      openModal({ mode: "signup", after: toggleLike });
-      return;
-    }
+  async function like() {
     if (pending) return;
     setPending(true);
-    const prevLiked = liked;
-    const prevCount = likeCount;
-    setLiked(!prevLiked);
-    setLikeCount(prevCount + (prevLiked ? -1 : 1));
+    // Optimistic bump + heart pulse
+    setLikeCount((c) => c + 1);
+    setPulseKey((k) => k + 1);
     const res = await fetch(`/api/posts/${postId}/like`, { method: "POST" });
     if (!res.ok) {
-      setLiked(prevLiked);
-      setLikeCount(prevCount);
+      setLikeCount((c) => Math.max(0, c - 1));
       setPending(false);
       return;
     }
-    const data = (await res.json()) as { liked: boolean; likeCount: number };
-    setLiked(data.liked);
+    const data = (await res.json()) as { likeCount: number };
     setLikeCount(data.likeCount);
     setPending(false);
   }
@@ -61,19 +51,20 @@ export default function PostInteractionBar({
     <div className="flex flex-wrap items-center gap-2 mt-4">
       <button
         type="button"
-        onClick={toggleLike}
+        onClick={like}
         disabled={pending}
-        aria-pressed={liked}
-        className={`${btnBase} disabled:opacity-60 ${
-          liked
-            ? "border-deama-red text-deama-red"
-            : "hover:border-deama-red hover:text-deama-red"
-        }`}
+        aria-label="Like this post"
+        className={`${btnBase} disabled:opacity-60 border-deama-red text-deama-red hover:bg-deama-red hover:text-white`}
       >
-        <Heart size={14} fill={liked ? "currentColor" : "none"} />
-        {liked ? "Liked" : "Like"}
+        <Heart
+          key={pulseKey}
+          size={14}
+          fill="currentColor"
+          className="animate-[pulse-red_0.6s_ease-out]"
+        />
+        Like
         {likeCount > 0 && (
-          <span className="opacity-75">· {formatViews(likeCount)}</span>
+          <span className="opacity-90">· {formatViews(likeCount)}</span>
         )}
       </button>
 

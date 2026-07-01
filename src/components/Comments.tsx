@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useSession } from "next-auth/react";
-import { Heart, MessageSquare } from "lucide-react";
+import { Heart, MessageSquare, EyeOff } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
 import { useAuthModal } from "./AuthModalProvider";
 
@@ -14,6 +14,7 @@ interface CommentNode {
   likeCount: number;
   username: string;
   likedByMe: boolean;
+  hidden?: boolean;
 }
 
 interface CommentTree extends CommentNode {
@@ -218,6 +219,7 @@ export default function Comments({ postId }: { postId: string }) {
               depth={0}
               onLike={toggleLike}
               postComment={postComment}
+              forceReveal={false}
             />
           ))}
         </ul>
@@ -231,6 +233,9 @@ interface CommentNodeViewProps {
   depth: number;
   onLike: (commentId: string) => void;
   postComment: (text: string, parentId: string) => void;
+  /** When true, skip the hidden check for this node and all descendants
+      (used when a parent hidden comment has been revealed). */
+  forceReveal: boolean;
 }
 
 function CommentNodeView({
@@ -238,12 +243,16 @@ function CommentNodeView({
   depth,
   onLike,
   postComment,
+  forceReveal,
 }: CommentNodeViewProps) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [reply, setReply] = useState("");
-  const maxIndent = 4; // visual cap on indentation
+  const [locallyRevealed, setLocallyRevealed] = useState(false);
+  const maxIndent = 4;
   const visualDepth = Math.min(depth, maxIndent);
   const indentClass = visualDepth > 0 ? "border-l border-deama-border pl-3 md:pl-4" : "";
+
+  const isHidden = Boolean(node.hidden) && !forceReveal && !locallyRevealed;
 
   function submitReply(e: React.FormEvent) {
     e.preventDefault();
@@ -253,6 +262,39 @@ function CommentNodeView({
     setReply("");
     setReplyOpen(false);
   }
+
+  // Count all descendants (used in the hidden placeholder for context).
+  function countDescendants(n: CommentTree): number {
+    return n.children.reduce((sum, c) => sum + 1 + countDescendants(c), 0);
+  }
+
+  if (isHidden) {
+    const hiddenReplies = countDescendants(node);
+    return (
+      <li className={visualDepth > 0 ? `ml-3 md:ml-4 ${indentClass}` : ""}>
+        <div className="bg-deama-ink/60 border border-dashed border-deama-border rounded p-3 text-center">
+          <p className="text-xs text-deama-muted inline-flex items-center gap-1.5">
+            <EyeOff size={12} />
+            Comment hidden by moderation
+            {hiddenReplies > 0 && (
+              <span>· {hiddenReplies} repl{hiddenReplies === 1 ? "y" : "ies"} hidden</span>
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={() => setLocallyRevealed(true)}
+            className="mt-2 text-xs uppercase tracking-wider font-semibold text-deama-gold-bright hover:text-deama-red"
+          >
+            View hidden message
+          </button>
+        </div>
+      </li>
+    );
+  }
+
+  // If this node was hidden but the user chose to reveal it, cascade reveal
+  // to descendants so the whole thread opens together.
+  const descendantForceReveal = forceReveal || (Boolean(node.hidden) && locallyRevealed);
 
   return (
     <li className={visualDepth > 0 ? `ml-3 md:ml-4 ${indentClass}` : ""}>
@@ -325,6 +367,7 @@ function CommentNodeView({
               depth={depth + 1}
               onLike={onLike}
               postComment={postComment}
+              forceReveal={descendantForceReveal}
             />
           ))}
         </ul>

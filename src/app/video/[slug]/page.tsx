@@ -1,10 +1,8 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { getRelatedPosts } from "@/lib/posts";
-import { authOptions } from "@/lib/auth";
 import VideoPlayer from "@/components/VideoPlayer";
 import PostInteractionBar from "@/components/PostInteractionBar";
 import Comments from "@/components/Comments";
@@ -61,21 +59,10 @@ export async function generateMetadata({
 }
 
 export default async function VideoPage({ params }: PageProps) {
-  const [post, session] = await Promise.all([
-    loadPost(params.slug),
-    getServerSession(authOptions),
-  ]);
+  const post = await loadPost(params.slug);
   if (!post || !post.published) notFound();
 
-  const [related, myLike] = await Promise.all([
-    getRelatedPosts(post.id, post.category.id, 8),
-    session?.user?.id
-      ? prisma.postLike.findUnique({
-          where: { postId_userId: { postId: post.id, userId: session.user.id } },
-          select: { id: true },
-        })
-      : Promise.resolve(null),
-  ]);
+  const related = await getRelatedPosts(post.id, post.category.id, 8);
   const url = absoluteUrl(`/video/${post.slug}`);
 
   const ldJson = {
@@ -140,7 +127,6 @@ export default async function VideoPage({ params }: PageProps) {
           url={url}
           title={post.title}
           initialLikeCount={post.likeCount}
-          initialLikedByMe={Boolean(myLike)}
           commentCount={post._count.comments}
         />
 

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { isCommentHidden } from "@/lib/moderation";
 
 export const runtime = "nodejs";
 
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
     likeCount: r.likeCount,
     username: r.user?.username || r.author,
     likedByMe: Array.isArray(r.likes) ? r.likes.length > 0 : false,
+    hidden: isCommentHidden(r.body),
   }));
 
   return NextResponse.json({ comments });
@@ -131,6 +133,7 @@ export async function POST(req: NextRequest) {
       likeCount: comment.likeCount,
       username: comment.user?.username || comment.author,
       likedByMe: false,
+      hidden: isCommentHidden(comment.body),
     },
   });
 }

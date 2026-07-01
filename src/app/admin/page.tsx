@@ -141,9 +141,10 @@ export default async function AdminHome() {
               </p>
             ) : (
               recentUsers.map((u) => (
-                <div
+                <Link
                   key={u.id}
-                  className="flex items-center justify-between gap-4 p-3"
+                  href={`/admin/users/${u.id}`}
+                  className="flex items-center justify-between gap-4 p-3 hover:bg-deama-surface"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate">
@@ -158,7 +159,7 @@ export default async function AdminHome() {
                   <span className="text-xs text-deama-muted shrink-0">
                     {timeAgo(u.createdAt)}
                   </span>
-                </div>
+                </Link>
               ))
             )}
           </div>
