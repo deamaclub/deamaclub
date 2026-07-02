@@ -29,6 +29,16 @@ async function loadPost(slug: string) {
   });
 }
 
+/** Plain-text, single-line excerpt for meta tags (strips markdown images). */
+function metaExcerpt(text: string | null, fallback: string, max = 160): string {
+  const clean = (text || fallback)
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (clean.length <= max) return clean;
+  return clean.slice(0, max - 1).replace(/\s+\S*$/, "") + "…";
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -38,21 +48,44 @@ export async function generateMetadata({
   }
   const url = absoluteUrl(`/video/${post.slug}`);
   const image = post.thumbnailUrl || "/og-default.jpg";
+  const desc = metaExcerpt(post.description, post.title);
+
   return {
     title: post.title,
-    description: post.description || undefined,
+    description: desc,
+    keywords: [
+      post.title,
+      post.category.name,
+      ...post.tags.map((t) => t.name),
+      "video",
+      "deamaclub",
+    ],
     alternates: { canonical: url },
     openGraph: {
       type: "video.other",
       url,
       title: post.title,
-      description: post.description || undefined,
-      images: [image],
+      description: desc,
+      images: [{ url: image, width: 1280, height: 720, alt: post.title }],
+      ...(post.embedUrl
+        ? { videos: [{ url: post.embedUrl, width: 1280, height: 720 }] }
+        : post.videoUrl
+        ? {
+            videos: [
+              {
+                url: post.videoUrl,
+                type: "video/mp4",
+                width: 1280,
+                height: 720,
+              },
+            ],
+          }
+        : {}),
     },
     twitter: {
       card: "player",
       title: post.title,
-      description: post.description || undefined,
+      description: desc,
       images: [image],
     },
   };
@@ -99,14 +132,78 @@ export default async function VideoPage({ params }: PageProps) {
     },
   };
 
+  const publishedIso = (post.publishedAt || post.createdAt).toISOString();
+  const articleDesc = metaExcerpt(post.description, post.title, 300);
+
+  // NewsArticle — qualifies the page for Google News / Discover surfacing,
+  // where viral entertainment content gets massive reach.
+  const articleLd = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: post.title.slice(0, 110),
+    description: articleDesc,
+    image: post.thumbnailUrl ? [post.thumbnailUrl] : undefined,
+    datePublished: publishedIso,
+    dateModified: post.updatedAt.toISOString(),
+    articleSection: post.category.name,
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    author: { "@type": "Organization", name: "Deamaclub", url: absoluteUrl("/") },
+    publisher: {
+      "@type": "Organization",
+      name: "Deamaclub",
+      logo: { "@type": "ImageObject", url: absoluteUrl("/logo.svg") },
+    },
+  };
+
+  // Breadcrumb — Home › Category › Title (breadcrumb rich result in SERPs).
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: post.category.name,
+        item: absoluteUrl(`/category/${post.category.slug}`),
+      },
+      { "@type": "ListItem", position: 3, name: post.title, item: url },
+    ],
+  };
+
   return (
     <article className="mx-auto max-w-7xl px-4 py-6 grid gap-6 lg:grid-cols-[1fr_320px]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(ldJson) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
 
       <div>
+        <nav aria-label="Breadcrumb" className="text-xs text-deama-muted mb-3">
+          <Link href="/" className="hover:text-deama-red">
+            Home
+          </Link>{" "}
+          <span className="mx-1">/</span>{" "}
+          <Link
+            href={`/category/${post.category.slug}`}
+            className="hover:text-deama-red"
+          >
+            {post.category.name}
+          </Link>{" "}
+          <span className="mx-1">/</span>{" "}
+          <span className="text-deama-text line-clamp-1 inline">
+            {post.title}
+          </span>
+        </nav>
+
         <AdSlot id="article-top" size="leaderboard" className="mb-4" />
 
         <VideoPlayer
