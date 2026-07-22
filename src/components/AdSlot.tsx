@@ -129,8 +129,12 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
   const [isDesktop, setIsDesktop] = useState(true);
 
   useEffect(() => {
-    setIsDesktop(window.innerWidth >= 768);
+    const mq = window.matchMedia("(min-width: 768px)");
+    setIsDesktop(mq.matches);
     setMounted(true);
+    const onChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   // Disabled → render nothing (keeps layout clean when ads are off).
