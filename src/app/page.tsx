@@ -91,7 +91,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       <aside className="space-y-4">
         <AdSlot id="home-sidebar-1" size="halfpage" />
-        <AdSlot id="home-sidebar-2" size="rectangle" />
       </aside>
     </div>
   );

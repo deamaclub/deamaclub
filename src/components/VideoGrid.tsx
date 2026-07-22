@@ -20,6 +20,9 @@ export default function VideoGrid({
     );
   }
   const out: React.ReactNode[] = [];
+  // Option C: at most ONE in-feed ad so the same native creative doesn't
+  // repeat between the cards.
+  let infeedPlaced = false;
   posts.forEach((p, i) => {
     out.push(
       <VideoCard
@@ -28,13 +31,16 @@ export default function VideoGrid({
         priority={i < priorityCount}
       />
     );
-    if (adEvery > 0 && (i + 1) % adEvery === 0 && i !== posts.length - 1) {
+    if (
+      adEvery > 0 &&
+      !infeedPlaced &&
+      (i + 1) % adEvery === 0 &&
+      i !== posts.length - 1
+    ) {
+      infeedPlaced = true;
       out.push(
-        <div
-          key={`ad-${i}`}
-          className="col-span-2 md:col-span-3 lg:col-span-4"
-        >
-          <AdSlot id={`infeed-${Math.floor(i / adEvery)}`} size="in-article" />
+        <div key={`ad-${i}`} className="col-span-2 md:col-span-3 lg:col-span-4">
+          <AdSlot id="infeed-0" size="in-article" />
         </div>
       );
     }

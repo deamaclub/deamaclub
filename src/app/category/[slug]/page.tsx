@@ -163,7 +163,6 @@ export default async function CategoryPage({
 
       <aside className="space-y-4">
         <AdSlot id={`cat-${cat.slug}-sidebar-1`} size="halfpage" />
-        <AdSlot id={`cat-${cat.slug}-sidebar-2`} size="rectangle" />
       </aside>
     </div>
   );

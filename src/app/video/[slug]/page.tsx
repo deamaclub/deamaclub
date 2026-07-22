@@ -98,6 +98,14 @@ export default async function VideoPage({ params }: PageProps) {
   const related = await getRelatedPosts(post.id, post.category.id, 8);
   const url = absoluteUrl(`/video/${post.slug}`);
 
+  // Option C: cap the article body to a single in-article ad so the same
+  // Adsterra native creative can't repeat down the page. Count description
+  // "ad sections" (split on triple-newlines) to decide placement.
+  const descSectionCount = post.description
+    ? post.description.split(/\n{3,}/).map((s) => s.trim()).filter(Boolean)
+        .length
+    : 0;
+
   const ldJson = {
     "@context": "https://schema.org",
     "@type": "VideoObject",
@@ -341,10 +349,13 @@ export default async function VideoPage({ params }: PageProps) {
                   const node = renderParagraph(para, `p-${sIdx}-${pIdx}`);
                   if (node) nodes.push(node);
                 });
-                if (sIdx < sections.length - 1) {
+                // Only ONE in-article ad, placed after the first section.
+                // (Posts with 0–1 sections get their single ad from the
+                // article-mid slot below instead.)
+                if (sIdx === 0 && sections.length > 1) {
                   nodes.push(
                     <AdSlot
-                      key={`ad-${sIdx}`}
+                      key="ad-inline"
                       id="article-inline"
                       size="in-article"
                       className="my-2"
@@ -357,7 +368,9 @@ export default async function VideoPage({ params }: PageProps) {
           </div>
         )}
 
-        <AdSlot id="article-mid" size="in-article" className="my-6" />
+        {descSectionCount <= 1 && (
+          <AdSlot id="article-mid" size="in-article" className="my-6" />
+        )}
 
         <div id="comments">
           <Comments postId={post.id} />
@@ -378,7 +391,6 @@ export default async function VideoPage({ params }: PageProps) {
             ))}
           </div>
         </section>
-        <AdSlot id="video-sidebar-2" size="rectangle" />
       </aside>
     </article>
   );
