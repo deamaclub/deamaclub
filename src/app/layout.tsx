@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AdSlot from "@/components/AdSlot";
 import Providers from "@/components/Providers";
+import SocialBar from "@/components/SocialBar";
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -125,6 +126,7 @@ gtag('config', '${GA_ID}');
           </div>
           <main className="flex-1">{children}</main>
           <Footer />
+          <SocialBar />
         </Providers>
       </body>
     </html>

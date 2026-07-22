@@ -1,22 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
-/**
- * Named ad placement zones.
- *
- * When AdSense is configured AND a per-zone slot ID env var is set, this
- * renders a real <ins class="adsbygoogle"> block and triggers
- * adsbygoogle.push({}). Otherwise it renders a sized placeholder so the
- * layout reserves space (low CLS) during development and before approval.
- *
- * Per-zone slot env var naming:
- *   zone id `leaderboard-top` → NEXT_PUBLIC_ADSENSE_SLOT_LEADERBOARD_TOP
- *   zone id `home-sidebar-1`  → NEXT_PUBLIC_ADSENSE_SLOT_HOME_SIDEBAR_1
- *
- * After Google approves the site, create an Ad Unit per zone in the AdSense
- * dashboard, copy the numeric slot ID, and set the matching env var.
- */
+import { useEffect, useRef, useState } from "react";
+import {
+  ADSTERRA_ENABLED,
+  BANNER_DESKTOP_KEY,
+  BANNER_MOBILE_KEY,
+  NATIVE_KEY,
+  NATIVE_URL,
+} from "@/lib/adsterra";
 
 type AdSize =
   | "leaderboard"
@@ -27,78 +18,153 @@ type AdSize =
   | "in-article"
   | "interstitial";
 
-const SIZE_CLASSES: Record<AdSize, string> = {
-  leaderboard: "min-h-[90px]",
-  rectangle: "min-h-[250px]",
-  halfpage: "min-h-[600px]",
-  sidebar: "min-h-[600px]",
-  "mobile-banner": "min-h-[50px] md:hidden",
-  "in-article": "min-h-[280px]",
-  interstitial: "min-h-[60px]",
-};
-
 interface AdSlotProps {
   id: string;
   size: AdSize;
   className?: string;
 }
 
-declare global {
-  interface Window {
-    adsbygoogle?: Array<Record<string, unknown>>;
-  }
+const SANDBOX =
+  "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
+
+/** Isolated document for a banner unit (atOptions loader). */
+function bannerSrcDoc(key: string, w: number, h: number): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0}html,body{overflow:hidden;background:transparent}</style></head><body><script type="text/javascript">atOptions={'key':'${key}','format':'iframe','height':${h},'width':${w},'params':{}};<\/script><script type="text/javascript" src="https://www.highperformanceformat.com/${key}/invoke.js"><\/script></body></html>`;
 }
 
-function envSlotId(zoneId: string): string | undefined {
-  const key = `NEXT_PUBLIC_ADSENSE_SLOT_${zoneId
-    .toUpperCase()
-    .replace(/-/g, "_")}`;
-  // NEXT_PUBLIC_* are inlined at build time, so this access works on the
-  // client. We can't index `process.env` dynamically and have it bundled,
-  // so we explicitly look it up here at runtime via the inlined values.
-  return (process.env as Record<string, string | undefined>)[key];
+/** Isolated document for the native banner unit. */
+function nativeSrcDoc(): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0}html,body{background:transparent}</style></head><body><script async="async" data-cfasync="false" src="${NATIVE_URL}"><\/script><div id="container-${NATIVE_KEY}"></div></body></html>`;
+}
+
+/** Fixed-size banner (728x90 desktop or 320x50 mobile). */
+function AdsterraBanner({ variant }: { variant: "desktop" | "mobile" }) {
+  const key = variant === "desktop" ? BANNER_DESKTOP_KEY : BANNER_MOBILE_KEY;
+  const w = variant === "desktop" ? 728 : 320;
+  const h = variant === "desktop" ? 90 : 50;
+  return (
+    <iframe
+      title="Advertisement"
+      aria-label="Advertisement"
+      srcDoc={bannerSrcDoc(key, w, h)}
+      width={w}
+      height={h}
+      scrolling="no"
+      sandbox={SANDBOX}
+      style={{
+        border: 0,
+        width: w,
+        height: h,
+        maxWidth: "100%",
+        display: "block",
+      }}
+    />
+  );
+}
+
+/** Native banner with auto-height (srcDoc is same-origin, so we can read
+    its content height and grow the iframe as the ad fills in). */
+function AdsterraNative({ minHeight }: { minHeight: number }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  const [h, setH] = useState(minHeight);
+
+  useEffect(() => {
+    const iframe = ref.current;
+    if (!iframe) return;
+    let ro: ResizeObserver | null = null;
+
+    function sync() {
+      try {
+        const doc = iframe!.contentDocument;
+        const sh = doc?.body?.scrollHeight ?? 0;
+        if (sh > 10) setH((prev) => (Math.abs(prev - sh) > 2 ? sh : prev));
+      } catch {
+        /* cross-origin — shouldn't happen with srcDoc, but be safe */
+      }
+    }
+
+    function attach() {
+      try {
+        const body = iframe!.contentDocument?.body;
+        if (body && "ResizeObserver" in window) {
+          ro = new ResizeObserver(sync);
+          ro.observe(body);
+        }
+      } catch {
+        /* ignore */
+      }
+      sync();
+    }
+
+    iframe.addEventListener("load", attach);
+    // The ad fills asynchronously; poll for the first ~10s to catch it.
+    let n = 0;
+    const poll = setInterval(() => {
+      sync();
+      if (++n > 20) clearInterval(poll);
+    }, 500);
+
+    return () => {
+      iframe.removeEventListener("load", attach);
+      ro?.disconnect();
+      clearInterval(poll);
+    };
+  }, []);
+
+  return (
+    <iframe
+      ref={ref}
+      title="Advertisement"
+      aria-label="Advertisement"
+      srcDoc={nativeSrcDoc()}
+      scrolling="no"
+      sandbox={SANDBOX}
+      style={{ border: 0, width: "100%", height: h, display: "block" }}
+    />
+  );
 }
 
 export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
-  const client = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
-  const slot = envSlotId(id);
-  const insRef = useRef<HTMLModElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(true);
 
   useEffect(() => {
-    if (!client || !slot) return;
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch {
-      /* swallow — AdSense will log to console itself */
-    }
-  }, [client, slot]);
+    setIsDesktop(window.innerWidth >= 768);
+    setMounted(true);
+  }, []);
 
-  // Real ad: render the <ins> AdSense expects and let the loader script
-  // (in app/layout) fill it. Sized via the same min-heights so CLS is low.
-  if (client && slot) {
-    return (
-      <ins
-        ref={insRef}
-        data-ad-zone={id}
-        data-ad-size={size}
-        className={`adsbygoogle block w-full ${SIZE_CLASSES[size]} ${className}`}
-        style={{ display: "block" }}
-        data-ad-client={client}
-        data-ad-slot={slot}
-        data-ad-format={size === "in-article" ? "fluid" : "auto"}
-        data-full-width-responsive="true"
-      />
-    );
+  // Disabled → render nothing (keeps layout clean when ads are off).
+  if (!ADSTERRA_ENABLED) return null;
+
+  const reserve =
+    size === "leaderboard"
+      ? isDesktop
+        ? 90
+        : 50
+      : size === "mobile-banner"
+      ? 50
+      : 120;
+
+  let inner: React.ReactNode = null;
+  if (mounted) {
+    if (size === "leaderboard") {
+      inner = <AdsterraBanner variant={isDesktop ? "desktop" : "mobile"} />;
+    } else if (size === "mobile-banner") {
+      inner = <AdsterraBanner variant="mobile" />;
+    } else {
+      // rectangle, halfpage, sidebar, in-article, interstitial → native
+      inner = <AdsterraNative minHeight={reserve} />;
+    }
   }
 
-  // Placeholder (pre-approval, dev, or zones without a slot ID yet).
   return (
     <div
       data-ad-zone={id}
       data-ad-size={size}
-      className={`w-full flex items-center justify-center text-deama-muted text-[10px] uppercase tracking-widest bg-deama-ink/60 border border-dashed border-deama-border rounded ${SIZE_CLASSES[size]} ${className}`}
+      className={`w-full flex items-center justify-center overflow-hidden ${className}`}
+      style={{ minHeight: reserve }}
     >
-      <span aria-hidden>AD · {size}</span>
+      {inner}
     </div>
   );
 }
