@@ -20,10 +20,12 @@ type AdSize =
   | "grid-card"
   | "interstitial";
 
-// Card-shaped ad box that mirrors a VideoCard's footprint: ~320px wide,
-// rounded, bordered, aspect-video + caption strip (~250px tall).
-const CARD_MAX_W = 320;
-const CARD_H = 250;
+// Card-shaped ad box that mirrors a VideoCard's footprint: ~320px wide.
+// CARD_H is the reserved starting height; CARD_MAX_H caps a full multi-item
+// widget (e.g. a 2x2 = two rows of tiles) so it can't balloon into a tower.
+const CARD_MAX_W = 340;
+const CARD_H = 190;
+const CARD_MAX_H = 520;
 
 interface AdSlotProps {
   id: string;
@@ -70,8 +72,15 @@ function AdsterraBanner({ variant }: { variant: "desktop" | "mobile" }) {
 }
 
 /** Native banner with auto-height (srcDoc is same-origin, so we can read
-    its content height and grow the iframe as the ad fills in). */
-function AdsterraNative({ minHeight }: { minHeight: number }) {
+    its content height and grow the iframe as the ad fills in). A maxHeight
+    clamp prevents a runaway layout from ballooning into a tower. */
+function AdsterraNative({
+  minHeight,
+  maxHeight,
+}: {
+  minHeight: number;
+  maxHeight?: number;
+}) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [h, setH] = useState(minHeight);
 
@@ -83,7 +92,8 @@ function AdsterraNative({ minHeight }: { minHeight: number }) {
     function sync() {
       try {
         const doc = iframe!.contentDocument;
-        const sh = doc?.body?.scrollHeight ?? 0;
+        const raw = doc?.body?.scrollHeight ?? 0;
+        const sh = maxHeight ? Math.min(raw, maxHeight) : raw;
         if (sh > 10) setH((prev) => (Math.abs(prev - sh) > 2 ? sh : prev));
       } catch {
         /* cross-origin — shouldn't happen with srcDoc, but be safe */
@@ -147,37 +157,25 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
   // Disabled → render nothing (keeps layout clean when ads are off).
   if (!ADSTERRA_ENABLED) return null;
 
-  // Card-shaped slot: a fixed-size native box that mirrors a VideoCard, so
-  // it reads like a single video card embedded in the article.
+  // Card-shaped slot (detail-page in-article): a card-styled, ~card-width
+  // box that auto-heights to show ALL of the native widget's items (e.g. a
+  // 2x2 renders as 4 tiles), capped so it can't tower.
   if (size === "card") {
     return (
       <div
         data-ad-zone={id}
         data-ad-size={size}
         className={`mx-auto w-full overflow-hidden rounded-lg border border-deama-border bg-deama-ink ${className}`}
-        style={{ maxWidth: CARD_MAX_W, height: CARD_H }}
+        style={{ maxWidth: CARD_MAX_W }}
       >
-        {mounted && (
-          <iframe
-            title="Advertisement"
-            aria-label="Advertisement"
-            srcDoc={nativeSrcDoc()}
-            scrolling="no"
-            sandbox={SANDBOX}
-            style={{
-              border: 0,
-              width: "100%",
-              height: "100%",
-              display: "block",
-            }}
-          />
-        )}
+        {mounted && <AdsterraNative minHeight={CARD_H} maxHeight={CARD_MAX_H} />}
       </div>
     );
   }
 
-  // Grid-card slot: fills one grid cell with a video-card footprint
-  // (card styling + ~9:10 aspect so it scales with the column width).
+  // Grid-card slot (homepage in-feed): fills its container (VideoGrid makes
+  // it 2 columns wide) and auto-heights so a 2x2 native shows all 4 tiles at
+  // card width; a 2:1 collapses to one row — all seamlessly.
   if (size === "grid-card") {
     return (
       <div
@@ -185,19 +183,7 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
         data-ad-size={size}
         className={`w-full overflow-hidden rounded-lg border border-deama-border bg-deama-ink ${className}`}
       >
-        <div className="relative w-full aspect-[9/10]">
-          {mounted && (
-            <iframe
-              title="Advertisement"
-              aria-label="Advertisement"
-              srcDoc={nativeSrcDoc()}
-              scrolling="no"
-              sandbox={SANDBOX}
-              className="absolute inset-0"
-              style={{ border: 0, width: "100%", height: "100%" }}
-            />
-          )}
-        </div>
+        {mounted && <AdsterraNative minHeight={180} maxHeight={CARD_MAX_H} />}
       </div>
     );
   }
