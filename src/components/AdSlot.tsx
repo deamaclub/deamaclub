@@ -17,6 +17,7 @@ type AdSize =
   | "mobile-banner"
   | "in-article"
   | "card"
+  | "grid-card"
   | "interstitial";
 
 // Card-shaped ad box that mirrors a VideoCard's footprint: ~320px wide,
@@ -171,6 +172,32 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
             }}
           />
         )}
+      </div>
+    );
+  }
+
+  // Grid-card slot: fills one grid cell with a video-card footprint
+  // (card styling + ~9:10 aspect so it scales with the column width).
+  if (size === "grid-card") {
+    return (
+      <div
+        data-ad-zone={id}
+        data-ad-size={size}
+        className={`w-full overflow-hidden rounded-lg border border-deama-border bg-deama-ink ${className}`}
+      >
+        <div className="relative w-full aspect-[9/10]">
+          {mounted && (
+            <iframe
+              title="Advertisement"
+              aria-label="Advertisement"
+              srcDoc={nativeSrcDoc()}
+              scrolling="no"
+              sandbox={SANDBOX}
+              className="absolute inset-0"
+              style={{ border: 0, width: "100%", height: "100%" }}
+            />
+          )}
+        </div>
       </div>
     );
   }

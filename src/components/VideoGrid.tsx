@@ -38,11 +38,9 @@ export default function VideoGrid({
       i !== posts.length - 1
     ) {
       infeedPlaced = true;
-      out.push(
-        <div key={`ad-${i}`} className="col-span-2 md:col-span-3 lg:col-span-4">
-          <AdSlot id="infeed-0" size="in-article" />
-        </div>
-      );
+      // One grid cell, styled + sized like a video card so it flows inline
+      // with the posts instead of stretching across the whole row.
+      out.push(<AdSlot key={`ad-${i}`} id="infeed-0" size="grid-card" />);
     }
   });
 
