@@ -365,8 +365,8 @@ export default async function VideoPage({ params }: PageProps) {
                     <AdSlot
                       key="ad-inline"
                       id="article-inline"
-                      size="in-article"
-                      className="my-2"
+                      size="card"
+                      className="my-4"
                     />
                   );
                 }
@@ -377,7 +377,7 @@ export default async function VideoPage({ params }: PageProps) {
         )}
 
         {descSectionCount <= 1 && (
-          <AdSlot id="article-mid" size="in-article" className="my-6" />
+          <AdSlot id="article-mid" size="card" className="my-6" />
         )}
 
         <div id="comments">

@@ -16,7 +16,13 @@ type AdSize =
   | "sidebar"
   | "mobile-banner"
   | "in-article"
+  | "card"
   | "interstitial";
+
+// Card-shaped ad box that mirrors a VideoCard's footprint: ~320px wide,
+// rounded, bordered, aspect-video + caption strip (~250px tall).
+const CARD_MAX_W = 320;
+const CARD_H = 250;
 
 interface AdSlotProps {
   id: string;
@@ -139,6 +145,35 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
 
   // Disabled → render nothing (keeps layout clean when ads are off).
   if (!ADSTERRA_ENABLED) return null;
+
+  // Card-shaped slot: a fixed-size native box that mirrors a VideoCard, so
+  // it reads like a single video card embedded in the article.
+  if (size === "card") {
+    return (
+      <div
+        data-ad-zone={id}
+        data-ad-size={size}
+        className={`mx-auto w-full overflow-hidden rounded-lg border border-deama-border bg-deama-ink ${className}`}
+        style={{ maxWidth: CARD_MAX_W, height: CARD_H }}
+      >
+        {mounted && (
+          <iframe
+            title="Advertisement"
+            aria-label="Advertisement"
+            srcDoc={nativeSrcDoc()}
+            scrolling="no"
+            sandbox={SANDBOX}
+            style={{
+              border: 0,
+              width: "100%",
+              height: "100%",
+              display: "block",
+            }}
+          />
+        )}
+      </div>
+    );
+  }
 
   const reserve =
     size === "leaderboard"
