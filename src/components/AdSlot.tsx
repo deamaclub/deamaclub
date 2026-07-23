@@ -65,7 +65,13 @@ function AdsterraBanner({ variant }: { variant: "desktop" | "mobile" }) {
 
 /** Native banner with auto-height (srcDoc is same-origin, so we can read
     its content height and grow the iframe as the ad fills in). */
-function AdsterraNative({ minHeight }: { minHeight: number }) {
+function AdsterraNative({
+  minHeight,
+  maxHeight,
+}: {
+  minHeight: number;
+  maxHeight: number;
+}) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [h, setH] = useState(minHeight);
 
@@ -77,7 +83,9 @@ function AdsterraNative({ minHeight }: { minHeight: number }) {
     function sync() {
       try {
         const doc = iframe!.contentDocument;
-        const sh = doc?.body?.scrollHeight ?? 0;
+        const raw = doc?.body?.scrollHeight ?? 0;
+        // Clamp so a tall multi-item native can't balloon into a tower.
+        const sh = Math.min(raw, maxHeight);
         if (sh > 10) setH((prev) => (Math.abs(prev - sh) > 2 ? sh : prev));
       } catch {
         /* cross-origin — shouldn't happen with srcDoc, but be safe */
@@ -150,6 +158,17 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
       ? 50
       : 120;
 
+  // Hard ceiling so a native ad can never balloon into a tall tower.
+  // in-feed is kept short so it reads like ~2 rows of video cards.
+  const maxH =
+    size === "in-feed"
+      ? 340
+      : size === "in-article"
+      ? 380
+      : size === "halfpage" || size === "sidebar"
+      ? 620
+      : 400;
+
   let inner: React.ReactNode = null;
   if (mounted) {
     if (size === "leaderboard") {
@@ -158,7 +177,7 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
       inner = <AdsterraBanner variant="mobile" />;
     } else {
       // rectangle, halfpage, sidebar, in-article, in-feed, interstitial → native
-      inner = <AdsterraNative minHeight={reserve} />;
+      inner = <AdsterraNative minHeight={reserve} maxHeight={maxH} />;
     }
   }
 
