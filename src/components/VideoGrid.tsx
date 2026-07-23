@@ -38,13 +38,15 @@ export default function VideoGrid({
       i !== posts.length - 1
     ) {
       infeedPlaced = true;
-      // Span 2 columns on every breakpoint so the scaled native has room to
-      // render its full 2x2 (all 4 tiles visible) and scale to fit.
-      out.push(
-        <div key={`ad-${i}`} className="col-span-2">
-          <AdSlot id="infeed-0" size="grid-card" />
-        </div>
-      );
+      // Four separate card tiles. CSS grid arranges them into a 2x2 on mobile
+      // (2-col grid) / a row of four on desktop — each is one clean native
+      // tile the size of a video card. This shows 4 viewable ads without
+      // fighting Adsterra's single-column mobile rendering.
+      for (let k = 0; k < 4; k++) {
+        out.push(
+          <AdSlot key={`ad-${i}-${k}`} id={`infeed-${k}`} size="grid-card" />
+        );
+      }
     }
   });
 

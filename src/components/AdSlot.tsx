@@ -139,101 +139,6 @@ function AdsterraNative({
   );
 }
 
-/**
- * Renders the native at a fixed width wide enough for Adsterra's multi-column
- * layout (NATIVE_RENDER_W), then CSS-scales the whole iframe down to fit the
- * actual slot width. This keeps ALL of the widget's items fully visible (and
- * clickable) — a real 2x2 shows as 4 tiles even on a phone, where the native
- * would otherwise collapse to a single-column tower. Works for 1:1 / 2:1 /
- * 2:2 with no per-layout config.
- */
-const NATIVE_RENDER_W = 460;
-const NATIVE_MAX_RAW_H = 560;
-
-function AdsterraScaledNative() {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const frameRef = useRef<HTMLIFrameElement>(null);
-  const [scale, setScale] = useState(1);
-  const [rawH, setRawH] = useState(240);
-
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    const frame = frameRef.current;
-    if (!wrap || !frame) return;
-    let roWrap: ResizeObserver | null = null;
-    let roBody: ResizeObserver | null = null;
-
-    function recalc() {
-      const w = wrap!.clientWidth || NATIVE_RENDER_W;
-      setScale(Math.min(1, w / NATIVE_RENDER_W));
-      try {
-        const ch = frame!.contentDocument?.body?.scrollHeight ?? 0;
-        if (ch > 10) setRawH(Math.min(ch, NATIVE_MAX_RAW_H));
-      } catch {
-        /* same-origin srcDoc — shouldn't throw */
-      }
-    }
-
-    if ("ResizeObserver" in window) {
-      roWrap = new ResizeObserver(recalc);
-      roWrap.observe(wrap);
-    }
-    function attach() {
-      try {
-        const body = frame!.contentDocument?.body;
-        if (body && "ResizeObserver" in window) {
-          roBody = new ResizeObserver(recalc);
-          roBody.observe(body);
-        }
-      } catch {
-        /* ignore */
-      }
-      recalc();
-    }
-    frame.addEventListener("load", attach);
-    let n = 0;
-    const poll = setInterval(() => {
-      recalc();
-      if (++n > 20) clearInterval(poll);
-    }, 500);
-
-    return () => {
-      roWrap?.disconnect();
-      roBody?.disconnect();
-      frame.removeEventListener("load", attach);
-      clearInterval(poll);
-    };
-  }, []);
-
-  return (
-    <div
-      ref={wrapRef}
-      style={{
-        width: "100%",
-        height: Math.round(rawH * scale),
-        overflow: "hidden",
-      }}
-    >
-      <iframe
-        ref={frameRef}
-        title="Advertisement"
-        aria-label="Advertisement"
-        srcDoc={nativeSrcDoc()}
-        scrolling="no"
-        sandbox={SANDBOX}
-        style={{
-          border: 0,
-          width: NATIVE_RENDER_W,
-          height: rawH,
-          transform: `scale(${scale})`,
-          transformOrigin: "top left",
-          display: "block",
-        }}
-      />
-    </div>
-  );
-}
-
 export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
   const [mounted, setMounted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
@@ -259,9 +164,23 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
         data-ad-zone={id}
         data-ad-size={size}
         className={`mx-auto w-full overflow-hidden rounded-lg border border-deama-border bg-deama-ink ${className}`}
-        style={{ maxWidth: CARD_MAX_W }}
+        style={{ maxWidth: CARD_MAX_W, height: 250 }}
       >
-        {mounted && <AdsterraScaledNative />}
+        {mounted && (
+          <iframe
+            title="Advertisement"
+            aria-label="Advertisement"
+            srcDoc={nativeSrcDoc()}
+            scrolling="no"
+            sandbox={SANDBOX}
+            style={{
+              border: 0,
+              width: "100%",
+              height: "100%",
+              display: "block",
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -273,16 +192,28 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
   //   • Mobile: too narrow for 2 columns (Adsterra would stack items into a
   //     tall tower), so we show it as ONE clean card matching a video card.
   if (size === "grid-card") {
-    // Scaled native: renders the full multi-column widget and scales it to
-    // the slot width, so ALL items stay visible (correct CPM/viewability)
-    // on every screen — a 2x2 shows 4 tiles even on mobile.
+    // ONE card tile that fills a single grid cell (card styling + ~9:10
+    // aspect so it scales with the column width). VideoGrid renders four of
+    // these, and CSS grid arranges them 2x2 — each showing one native item.
     return (
       <div
         data-ad-zone={id}
         data-ad-size={size}
         className={`w-full overflow-hidden rounded-lg border border-deama-border bg-deama-ink ${className}`}
       >
-        {mounted && <AdsterraScaledNative />}
+        <div className="relative w-full aspect-[9/10]">
+          {mounted && (
+            <iframe
+              title="Advertisement"
+              aria-label="Advertisement"
+              srcDoc={nativeSrcDoc()}
+              scrolling="no"
+              sandbox={SANDBOX}
+              className="absolute inset-0"
+              style={{ border: 0, width: "100%", height: "100%" }}
+            />
+          )}
+        </div>
       </div>
     );
   }
