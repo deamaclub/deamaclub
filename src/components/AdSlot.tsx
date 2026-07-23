@@ -16,6 +16,7 @@ type AdSize =
   | "sidebar"
   | "mobile-banner"
   | "in-article"
+  | "in-feed"
   | "interstitial";
 
 interface AdSlotProps {
@@ -156,7 +157,7 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
     } else if (size === "mobile-banner") {
       inner = <AdsterraBanner variant="mobile" />;
     } else {
-      // rectangle, halfpage, sidebar, in-article, interstitial → native
+      // rectangle, halfpage, sidebar, in-article, in-feed, interstitial → native
       inner = <AdsterraNative minHeight={reserve} />;
     }
   }
