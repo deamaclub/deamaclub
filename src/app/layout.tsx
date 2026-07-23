@@ -70,6 +70,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${anton.variable}`}>
       <head>
+        {/* Clickadu site-ownership verification (raw meta — their verifier
+            reads static HTML and does not execute JS). */}
+        <meta name="clckd" content="5025a1386f7cc5445dfdb47d8f7de3b1" />
         {GA_ID && (
           <>
             {/* Google Analytics 4 — gtag.js loader + inline config.
