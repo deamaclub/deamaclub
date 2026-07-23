@@ -5,8 +5,15 @@ import { Edit3, PlusCircle } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPosts() {
+  // Most-recent first. Order by publishedAt (the same recency field the public
+  // site uses) rather than updatedAt — updatedAt gets bumped by every view
+  // (viewCount++), which shuffled the list into a "most recently viewed" order.
+  // Drafts (null publishedAt) fall to the bottom; createdAt breaks ties.
   const posts = await prisma.post.findMany({
-    orderBy: { updatedAt: "desc" },
+    orderBy: [
+      { publishedAt: { sort: "desc", nulls: "last" } },
+      { createdAt: "desc" },
+    ],
     take: 200,
     select: {
       id: true,
@@ -15,7 +22,8 @@ export default async function AdminPosts() {
       published: true,
       trending: true,
       viewCount: true,
-      updatedAt: true,
+      publishedAt: true,
+      createdAt: true,
       category: { select: { name: true } },
     },
   });

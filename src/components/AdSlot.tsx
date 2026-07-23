@@ -20,9 +20,8 @@ type AdSize =
   | "grid-card"
   | "interstitial";
 
-// Card-shaped ad box that mirrors a VideoCard's footprint: ~320px wide.
-// CARD_H is the reserved starting height; CARD_MAX_H caps a full multi-item
-// widget (e.g. a 2x2 = two rows of tiles) so it can't balloon into a tower.
+// Card-shaped ad box (in-article): capped at ~340px wide and auto-heights to
+// show the full native item — image AND caption — without clipping.
 const CARD_MAX_W = 340;
 
 interface AdSlotProps {
@@ -159,28 +158,17 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
   // box that auto-heights to show ALL of the native widget's items (e.g. a
   // 2x2 renders as 4 tiles), capped so it can't tower.
   if (size === "card") {
+    // Auto-height: the native unit is on a 1:1 layout (one item), so the
+    // iframe grows to the item's natural height and the caption below the
+    // image is fully visible instead of being clipped by a fixed box.
     return (
       <div
         data-ad-zone={id}
         data-ad-size={size}
         className={`mx-auto w-full overflow-hidden rounded-lg border border-deama-border bg-deama-ink ${className}`}
-        style={{ maxWidth: CARD_MAX_W, height: 250 }}
+        style={{ maxWidth: CARD_MAX_W }}
       >
-        {mounted && (
-          <iframe
-            title="Advertisement"
-            aria-label="Advertisement"
-            srcDoc={nativeSrcDoc()}
-            scrolling="no"
-            sandbox={SANDBOX}
-            style={{
-              border: 0,
-              width: "100%",
-              height: "100%",
-              display: "block",
-            }}
-          />
-        )}
+        {mounted && <AdsterraNative minHeight={250} />}
       </div>
     );
   }
