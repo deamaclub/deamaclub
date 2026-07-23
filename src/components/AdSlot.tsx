@@ -26,6 +26,8 @@ type AdSize =
 const CARD_MAX_W = 340;
 const CARD_H = 190;
 const CARD_MAX_H = 520;
+// Mobile in-feed card height (matches a video card ~180px).
+const GRID_CARD_MOBILE_H = 190;
 
 interface AdSlotProps {
   id: string;
@@ -173,17 +175,38 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
     );
   }
 
-  // Grid-card slot (homepage in-feed): fills its container (VideoGrid makes
-  // it 2 columns wide) and auto-heights so a 2x2 native shows all 4 tiles at
-  // card width; a 2:1 collapses to one row — all seamlessly.
+  // Grid-card slot (homepage in-feed). Adsterra's native only lays out
+  // multiple columns when the container is wide enough (~440px+):
+  //   • Desktop: the slot spans 2 grid columns, so a 2x2 renders as a real
+  //     2x2 grid — auto-height shows all tiles.
+  //   • Mobile: too narrow for 2 columns (Adsterra would stack items into a
+  //     tall tower), so we show it as ONE clean card matching a video card.
   if (size === "grid-card") {
     return (
       <div
         data-ad-zone={id}
         data-ad-size={size}
         className={`w-full overflow-hidden rounded-lg border border-deama-border bg-deama-ink ${className}`}
+        style={isDesktop ? undefined : { height: GRID_CARD_MOBILE_H }}
       >
-        {mounted && <AdsterraNative minHeight={180} maxHeight={CARD_MAX_H} />}
+        {mounted &&
+          (isDesktop ? (
+            <AdsterraNative minHeight={190} maxHeight={CARD_MAX_H} />
+          ) : (
+            <iframe
+              title="Advertisement"
+              aria-label="Advertisement"
+              srcDoc={nativeSrcDoc()}
+              scrolling="no"
+              sandbox={SANDBOX}
+              style={{
+                border: 0,
+                width: "100%",
+                height: "100%",
+                display: "block",
+              }}
+            />
+          ))}
       </div>
     );
   }

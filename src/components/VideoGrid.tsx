@@ -38,11 +38,10 @@ export default function VideoGrid({
       i !== posts.length - 1
     ) {
       infeedPlaced = true;
-      // Span 2 columns (a full mobile row / 2-wide block on desktop) so a
-      // 2x2 native renders as 4 card-width tiles that line up with the video
-      // cards, and a 2:1 collapses to one row — all auto-height.
+      // Mobile: one cell (Adsterra can't grid at phone width → one card).
+      // Desktop: span 2 columns so a 2x2 native renders as a real 2x2 grid.
       out.push(
-        <div key={`ad-${i}`} className="col-span-2">
+        <div key={`ad-${i}`} className="md:col-span-2">
           <AdSlot id="infeed-0" size="grid-card" />
         </div>
       );
