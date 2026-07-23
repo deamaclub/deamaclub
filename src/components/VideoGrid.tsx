@@ -38,12 +38,9 @@ export default function VideoGrid({
       i !== posts.length - 1
     ) {
       infeedPlaced = true;
-      // Occupy exactly 2 grid columns (a full mobile row / a 2-wide block on
-      // desktop) so a 2x2 native renders as card-width tiles that line up
-      // with the video cards, instead of one full-width stretched banner.
       out.push(
-        <div key={`ad-${i}`} className="col-span-2 rounded-lg overflow-hidden">
-          <AdSlot id="infeed-0" size="in-feed" />
+        <div key={`ad-${i}`} className="col-span-2 md:col-span-3 lg:col-span-4">
+          <AdSlot id="infeed-0" size="in-article" />
         </div>
       );
     }
