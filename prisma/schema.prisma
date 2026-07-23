@@ -63,6 +63,11 @@ model Post {
   slug          String     @unique
   title         String
   description   String?
+  // Optional per-post SEO overrides. When null, metadata is auto-derived
+  // from title + description at render time.
+  metaTitle       String?
+  metaDescription String?
+  focusKeywords   String?  // comma-separated
   embedUrl      String?
   videoUrl      String?
   thumbnailUrl  String?

@@ -6,6 +6,11 @@ import { Save, Trash2, Image as ImageIcon, Loader } from "lucide-react";
 import StreamUploader, {
   type StreamUploadResult,
 } from "./StreamUploader";
+import {
+  resolveMetaDescription,
+  resolveMetaTitle,
+  resolveKeywords,
+} from "@/lib/seo";
 
 interface CategoryOpt {
   id: string;
@@ -17,6 +22,9 @@ export interface PostInitial {
   title: string;
   slug: string;
   description: string;
+  metaTitle: string;
+  metaDescription: string;
+  focusKeywords: string;
   embedUrl: string;
   videoUrl: string;
   thumbnailUrl: string;
@@ -348,6 +356,129 @@ export default function PostForm({
           />
         )}
       </fieldset>
+
+      {(() => {
+        // Live SEO preview — mirrors exactly what the video page renders.
+        const cat =
+          categories.find((c) => c.id === form.categoryId)?.name || "";
+        const autoTitle = resolveMetaTitle("", form.title).value;
+        const effTitleFull = form.metaTitle.trim()
+          ? form.metaTitle.trim()
+          : `${autoTitle} | Deamaclub`;
+        const autoDesc = resolveMetaDescription(
+          "",
+          form.description,
+          form.title
+        );
+        const effDesc = form.metaDescription.trim() || autoDesc;
+        const kws = resolveKeywords(form.focusKeywords, {
+          title: form.title,
+          category: cat,
+        });
+        const slugPreview =
+          (form.slug || form.title || "your-post")
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .trim()
+            .replace(/\s+/g, "-") || "your-post";
+
+        const counter = (n: number, ideal: number, max: number) =>
+          n > max
+            ? "text-deama-red"
+            : n >= ideal
+            ? "text-green-400"
+            : "text-deama-muted";
+
+        return (
+          <fieldset className="bg-deama-ink border border-deama-border rounded p-4 space-y-3">
+            <legend className="px-2 text-xs uppercase tracking-wider text-deama-gold">
+              SEO
+            </legend>
+            <p className="text-[11px] text-deama-muted -mt-1">
+              Leave any field blank to auto-fill from the title &amp;
+              description. Fill it in to override.
+            </p>
+
+            {/* Google result preview */}
+            <div className="bg-white rounded p-3">
+              <p className="text-[#1a0dab] text-[15px] leading-snug truncate">
+                {effTitleFull}
+              </p>
+              <p className="text-[#006621] text-xs">
+                deamaclub.com › video › {slugPreview}
+              </p>
+              <p className="text-[#545454] text-xs leading-snug line-clamp-2">
+                {effDesc}
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-1">
+                <label className={labelCls}>SEO title</label>
+                <span
+                  className={`text-[10px] ${counter(
+                    (form.metaTitle || autoTitle).length,
+                    40,
+                    60
+                  )}`}
+                >
+                  {(form.metaTitle || autoTitle).length} chars
+                  {form.metaTitle ? "" : " (auto)"}
+                </span>
+              </div>
+              <input
+                value={form.metaTitle}
+                onChange={(e) => update("metaTitle", e.target.value)}
+                placeholder={autoTitle}
+                className={inputCls}
+                maxLength={200}
+              />
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-1">
+                <label className={labelCls}>Meta description</label>
+                <span
+                  className={`text-[10px] ${counter(
+                    (form.metaDescription || autoDesc).length,
+                    120,
+                    160
+                  )}`}
+                >
+                  {(form.metaDescription || autoDesc).length} chars
+                  {form.metaDescription ? "" : " (auto)"}
+                </span>
+              </div>
+              <textarea
+                rows={2}
+                value={form.metaDescription}
+                onChange={(e) => update("metaDescription", e.target.value)}
+                placeholder={autoDesc}
+                className={`${inputCls} resize-y`}
+                maxLength={320}
+              />
+            </div>
+
+            <div>
+              <label className={labelCls}>
+                Focus keywords (comma-separated)
+              </label>
+              <input
+                value={form.focusKeywords}
+                onChange={(e) => update("focusKeywords", e.target.value)}
+                placeholder={kws.join(", ")}
+                className={inputCls}
+                maxLength={300}
+              />
+              {!form.focusKeywords && (
+                <p className="text-[10px] text-deama-muted mt-1">
+                  Auto: {kws.join(", ")}
+                </p>
+              )}
+            </div>
+          </fieldset>
+        );
+      })()}
 
       <div className="flex flex-wrap gap-6">
         <label className="inline-flex items-center gap-2 text-sm">

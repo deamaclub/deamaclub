@@ -9,6 +9,11 @@ import Comments from "@/components/Comments";
 import VideoCard from "@/components/VideoCard";
 import AdSlot from "@/components/AdSlot";
 import { absoluteUrl, timeAgo, formatViews } from "@/lib/utils";
+import {
+  resolveMetaDescription,
+  resolveMetaTitle,
+  resolveKeywords,
+} from "@/lib/seo";
 import { Eye, Clock } from "lucide-react";
 
 // Disable static caching: we need session-aware `likedByMe` per request.
@@ -29,16 +34,6 @@ async function loadPost(slug: string) {
   });
 }
 
-/** Plain-text, single-line excerpt for meta tags (strips markdown images). */
-function metaExcerpt(text: string | null, fallback: string, max = 160): string {
-  const clean = (text || fallback)
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (clean.length <= max) return clean;
-  return clean.slice(0, max - 1).replace(/\s+\S*$/, "") + "…";
-}
-
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -48,23 +43,30 @@ export async function generateMetadata({
   }
   const url = absoluteUrl(`/video/${post.slug}`);
   const image = post.thumbnailUrl || "/og-default.jpg";
-  const desc = metaExcerpt(post.description, post.title);
+
+  const desc = resolveMetaDescription(
+    post.metaDescription,
+    post.description,
+    post.title
+  );
+  const seoTitle = resolveMetaTitle(post.metaTitle, post.title);
+  const keywords = resolveKeywords(post.focusKeywords, {
+    title: post.title,
+    category: post.category.name,
+    tags: post.tags.map((t) => t.name),
+  });
 
   return {
-    title: post.title,
+    title: seoTitle.absolute
+      ? { absolute: seoTitle.value }
+      : seoTitle.value,
     description: desc,
-    keywords: [
-      post.title,
-      post.category.name,
-      ...post.tags.map((t) => t.name),
-      "video",
-      "deamaclub",
-    ],
+    keywords,
     alternates: { canonical: url },
     openGraph: {
       type: "video.other",
       url,
-      title: post.title,
+      title: seoTitle.value,
       description: desc,
       images: [{ url: image, width: 1280, height: 720, alt: post.title }],
       ...(post.embedUrl
@@ -84,7 +86,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "player",
-      title: post.title,
+      title: seoTitle.value,
       description: desc,
       images: [image],
     },
@@ -141,14 +143,20 @@ export default async function VideoPage({ params }: PageProps) {
   };
 
   const publishedIso = (post.publishedAt || post.createdAt).toISOString();
-  const articleDesc = metaExcerpt(post.description, post.title, 300);
+  const articleDesc = resolveMetaDescription(
+    post.metaDescription,
+    post.description,
+    post.title,
+    300
+  );
+  const articleHeadline = resolveMetaTitle(post.metaTitle, post.title).value;
 
   // NewsArticle — qualifies the page for Google News / Discover surfacing,
   // where viral entertainment content gets massive reach.
   const articleLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
-    headline: post.title.slice(0, 110),
+    headline: articleHeadline.slice(0, 110),
     description: articleDesc,
     image: post.thumbnailUrl ? [post.thumbnailUrl] : undefined,
     datePublished: publishedIso,
