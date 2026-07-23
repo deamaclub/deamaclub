@@ -1,17 +1,19 @@
 import VideoCard, { VideoCardData } from "./VideoCard";
 import AdSlot from "./AdSlot";
+import LeadAdBlock from "./LeadAdBlock";
+import { ADSTERRA_ENABLED } from "@/lib/adsterra";
 
 interface VideoGridProps {
   posts: VideoCardData[];
-  /** Insert an in-feed ad after every Nth card (default 8). 0 to disable. */
-  adEvery?: number;
+  /** Show one in-feed ad in the first block (random slot per load). */
+  showAd?: boolean;
   /** Priority-load the first N thumbnails for LCP. */
   priorityCount?: number;
 }
 
 export default function VideoGrid({
   posts,
-  adEvery = 8,
+  showAd = true,
   priorityCount = 4,
 }: VideoGridProps) {
   if (posts.length === 0) {
@@ -19,40 +21,37 @@ export default function VideoGrid({
       <p className="text-deama-muted text-center py-16">No videos yet.</p>
     );
   }
-  const out: React.ReactNode[] = [];
-  // Option C: at most ONE in-feed ad so the same native creative doesn't
-  // repeat between the cards.
-  let infeedPlaced = false;
-  posts.forEach((p, i) => {
-    out.push(
-      <VideoCard
-        key={p.slug}
-        post={p}
-        priority={i < priorityCount}
-      />
+
+  const gridClass = "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4";
+
+  // No ad → plain grid of every video.
+  if (!showAd || !ADSTERRA_ENABLED) {
+    return (
+      <div className={gridClass}>
+        {posts.map((p, i) => (
+          <VideoCard key={p.slug} post={p} priority={i < priorityCount} />
+        ))}
+      </div>
     );
-    if (
-      adEvery > 0 &&
-      !infeedPlaced &&
-      (i + 1) % adEvery === 0 &&
-      i !== posts.length - 1
-    ) {
-      infeedPlaced = true;
-      // Four separate card tiles. CSS grid arranges them into a 2x2 on mobile
-      // (2-col grid) / a row of four on desktop — each is one clean native
-      // tile the size of a video card. This shows 4 viewable ads without
-      // fighting Adsterra's single-column mobile rendering.
-      for (let k = 0; k < 4; k++) {
-        out.push(
-          <AdSlot key={`ad-${i}-${k}`} id={`infeed-${k}`} size="grid-card" />
-        );
-      }
-    }
-  });
+  }
+
+  // ONE in-feed ad, dropped into the first 2x2 block: the first 3 videos plus
+  // the ad make four cells, with the ad in a random slot each page load. The
+  // rest of the videos flow normally below.
+  const leadVideos = posts.slice(0, 3);
+  const rest = posts.slice(3);
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {out}
+    <div className={gridClass}>
+      <LeadAdBlock
+        ad={<AdSlot key="infeed-ad" id="infeed" size="grid-card" />}
+        videos={leadVideos.map((p, i) => (
+          <VideoCard key={p.slug} post={p} priority={i < priorityCount} />
+        ))}
+      />
+      {rest.map((p) => (
+        <VideoCard key={p.slug} post={p} priority={false} />
+      ))}
     </div>
   );
 }

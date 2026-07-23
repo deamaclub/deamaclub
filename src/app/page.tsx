@@ -4,7 +4,6 @@ import { absoluteUrl } from "@/lib/utils";
 import VideoGrid from "@/components/VideoGrid";
 import TrendingHero from "@/components/TrendingHero";
 import Pagination from "@/components/Pagination";
-import AdSlot from "@/components/AdSlot";
 
 export const revalidate = 60;
 
@@ -54,7 +53,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 grid gap-6 lg:grid-cols-[1fr_300px]">
+    <div className="mx-auto max-w-7xl px-4 py-6">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }}
@@ -88,10 +87,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           basePath="/"
         />
       </div>
-
-      <aside className="space-y-4">
-        <AdSlot id="home-sidebar-1" size="halfpage" />
-      </aside>
     </div>
   );
 }
