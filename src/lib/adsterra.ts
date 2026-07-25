@@ -24,3 +24,15 @@ export const NATIVE_URL =
 // Social Bar (site-wide floating overlay). Single script, no slot.
 export const SOCIALBAR_URL =
   "https://pl30475620.effectivecpmnetwork.com/b3/2b/19/b32b19db51b88a83ec5504b0ff26d5db.js";
+
+// Popunder (site-wide, opens a background tab on the visitor's first click).
+// Dedicated kill switch so it can be turned off on its own — it's the most
+// intrusive format and breaks Google AdSense / Mediavine policy:
+//   NEXT_PUBLIC_POPUNDER_ENABLED=0
+// NOTE: NEXT_PUBLIC_* values are inlined into the client bundle at build
+// time, so flipping this needs a rebuild + redeploy (./deploy.sh does both).
+// `pm2 reload --update-env` alone will NOT turn it off.
+export const POPUNDER_ENABLED =
+  ADSTERRA_ENABLED && process.env.NEXT_PUBLIC_POPUNDER_ENABLED !== "0";
+export const POPUNDER_URL =
+  "https://pl30490169.effectivecpmnetwork.com/ca/1f/d9/ca1fd908887ab1bf38b40b26de62b432.js";

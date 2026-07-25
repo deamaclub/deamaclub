@@ -57,9 +57,6 @@ export default function VideoCard({
             no thumbnail
           </div>
         )}
-        <span className="absolute top-2 left-2 bg-deama-red text-white text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded">
-          {post.category.name}
-        </span>
         {duration && (
           <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[11px] font-mono px-1.5 py-0.5 rounded">
             {duration}

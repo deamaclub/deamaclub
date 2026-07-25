@@ -34,9 +34,6 @@ export default function TrendingHero({ posts }: { posts: VideoCardData[] }) {
             <div className="absolute inset-0 bg-deama-ink" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent" />
-          <span className="absolute top-3 left-3 bg-deama-red text-white text-[11px] font-bold uppercase tracking-widest px-2 py-1 rounded">
-            {lead.category.name}
-          </span>
           <div className="absolute bottom-0 left-0 right-0 p-4 md:p-5">
             <h3 className="font-display tracking-wide text-2xl md:text-3xl text-white leading-tight line-clamp-3">
               {lead.title}
@@ -69,9 +66,6 @@ export default function TrendingHero({ posts }: { posts: VideoCardData[] }) {
                 <div className="absolute inset-0 bg-deama-ink" />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-              <span className="absolute top-1.5 left-1.5 bg-deama-red text-white text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded">
-                {p.category.name}
-              </span>
               <h4 className="absolute bottom-0 left-0 right-0 p-2 text-sm md:text-base font-semibold text-white line-clamp-2 leading-tight">
                 {p.title}
               </h4>

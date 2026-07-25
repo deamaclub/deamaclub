@@ -18,6 +18,7 @@ type AdSize =
   | "in-article"
   | "card"
   | "grid-card"
+  | "list-card"
   | "interstitial";
 
 // Card-shaped ad box (in-article): capped at ~340px wide and auto-heights to
@@ -169,6 +170,24 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
         style={{ maxWidth: CARD_MAX_W }}
       >
         {mounted && <AdsterraNative minHeight={250} />}
+      </div>
+    );
+  }
+
+  // List-card slot (video page "Up Next" rail). Fills the column width just
+  // like the stacked VideoCards around it, and auto-heights so the native
+  // item's caption is never clipped.
+  if (size === "list-card") {
+    return (
+      <div
+        data-ad-zone={id}
+        data-ad-size={size}
+        className={`w-full overflow-hidden rounded-lg border border-deama-border bg-deama-ink ${className}`}
+        // Reserve the slot before the client mounts so the cards below it
+        // don't jump when the ad fills in.
+        style={{ minHeight: 220 }}
+      >
+        {mounted && <AdsterraNative minHeight={220} />}
       </div>
     );
   }

@@ -100,14 +100,6 @@ export default async function VideoPage({ params }: PageProps) {
   const related = await getRelatedPosts(post.id, post.category.id, 8);
   const url = absoluteUrl(`/video/${post.slug}`);
 
-  // Option C: cap the article body to a single in-article ad so the same
-  // Adsterra native creative can't repeat down the page. Count description
-  // "ad sections" (split on triple-newlines) to decide placement.
-  const descSectionCount = post.description
-    ? post.description.split(/\n{3,}/).map((s) => s.trim()).filter(Boolean)
-        .length
-    : 0;
-
   const ldJson = {
     "@context": "https://schema.org",
     "@type": "VideoObject",
@@ -220,8 +212,6 @@ export default async function VideoPage({ params }: PageProps) {
           </span>
         </nav>
 
-        <AdSlot id="article-top" size="leaderboard" className="mb-4" />
-
         <VideoPlayer
           postId={post.id}
           embedUrl={post.embedUrl}
@@ -244,12 +234,6 @@ export default async function VideoPage({ params }: PageProps) {
         />
 
         <header className="mt-4">
-          <Link
-            href={`/category/${post.category.slug}`}
-            className="inline-block bg-deama-red text-white text-[11px] font-bold uppercase tracking-widest px-2 py-1 rounded mb-2"
-          >
-            {post.category.name}
-          </Link>
           <h1 className="font-display tracking-wide text-3xl md:text-4xl leading-tight">
             {post.title}
           </h1>
@@ -268,8 +252,10 @@ export default async function VideoPage({ params }: PageProps) {
             {(() => {
               // Description rules:
               //   single \n        → line break inside a paragraph
-              //   \n\n             → paragraph break, NO ad
-              //   \n\n\n+          → paragraph break, ad here
+              //   \n\n             → paragraph break
+              //   \n\n\n+          → paragraph break (section boundary; the
+              //                      article no longer carries an inline ad —
+              //                      the only ad is in the Up Next rail)
               //   ![](url)         → inline image. If the paragraph is ONLY
               //                      an image, render as a standalone figure;
               //                      if mixed with text, render inline.
@@ -357,46 +343,49 @@ export default async function VideoPage({ params }: PageProps) {
                   const node = renderParagraph(para, `p-${sIdx}-${pIdx}`);
                   if (node) nodes.push(node);
                 });
-                // Only ONE in-article ad, placed after the first section.
-                // (Posts with 0–1 sections get their single ad from the
-                // article-mid slot below instead.)
-                if (sIdx === 0 && sections.length > 1) {
-                  nodes.push(
-                    <AdSlot
-                      key="ad-inline"
-                      id="article-inline"
-                      size="card"
-                      className="my-4"
-                    />
-                  );
-                }
               });
               return nodes;
             })()}
           </div>
         )}
 
-        {descSectionCount <= 1 && (
-          <AdSlot id="article-mid" size="card" className="my-6" />
-        )}
-
         <div id="comments">
           <Comments postId={post.id} />
         </div>
-
-        <AdSlot id="article-bottom" size="leaderboard" className="mt-8" />
       </div>
 
       <aside className="space-y-4">
-        <AdSlot id="video-sidebar-1" size="halfpage" />
         <section>
-          <h2 className="font-display tracking-wider text-lg text-deama-gold-bright mb-3">
-            UP NEXT
-          </h2>
+          {/* Heading only when there really is something up next — otherwise
+              it would sit above nothing but the ad. */}
+          {related.length > 0 && (
+            <h2 className="font-display tracking-wider text-lg text-deama-gold-bright mb-3">
+              UP NEXT
+            </h2>
+          )}
           <div className="grid grid-cols-1 gap-3">
-            {related.map((r) => (
-              <VideoCard key={r.slug} post={r} size="sm" />
-            ))}
+            {(() => {
+              // ONE ad in the Up Next rail, shaped like the cards around it
+              // and sitting in the SECOND slot (or last, if this post has
+              // fewer than two related videos). It's the only ad on the
+              // article itself.
+              const adPos = Math.min(1, related.length);
+              const cells: React.ReactNode[] = [];
+              related.forEach((r, i) => {
+                if (i === adPos) {
+                  cells.push(
+                    <AdSlot key="upnext-ad" id="upnext" size="list-card" />
+                  );
+                }
+                cells.push(<VideoCard key={r.slug} post={r} size="sm" />);
+              });
+              if (adPos >= related.length) {
+                cells.push(
+                  <AdSlot key="upnext-ad" id="upnext" size="list-card" />
+                );
+              }
+              return cells;
+            })()}
           </div>
         </section>
       </aside>
