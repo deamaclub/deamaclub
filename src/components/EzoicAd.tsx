@@ -34,22 +34,49 @@ export default function EzoicAd({
   const pathname = usePathname();
   const [unfilled, setUnfilled] = useState(false);
 
-  // Ezoic fires ezSlotComplete when it's done trying to fill a slot. If it
-  // came back empty, collapse the box so we don't leave a hole in the grid
-  // (matters while the account is still in review and nothing fills).
+  // An empty placeholder still occupies its grid cell, which leaves a
+  // card-shaped hole in the video grid — very visible while the account is
+  // in review and nothing fills. So: collapse the box unless it has content.
+  //
+  // Two signals, because Ezoic only emits the event once it's actually
+  // serving: (1) ezSlotComplete with filled:false, and (2) a plain "still
+  // empty after a few seconds" check. Both are reversible — a MutationObserver
+  // re-shows the slot the moment Ezoic injects anything into it.
   useEffect(() => {
     if (!num) return;
     setUnfilled(false);
+
+    const el = document.getElementById(`ezoic-pub-ad-placeholder-${num}`);
+    if (!el) return;
+
+    const hasContent = () => el.childNodes.length > 0;
+
     function onComplete(e: Event) {
       const d = (e as CustomEvent).detail as
         | { id?: number; placeholderId?: number; filled?: boolean }
         | undefined;
       if (!d) return;
       const slot = d.id ?? d.placeholderId;
-      if (slot === num && d.filled === false) setUnfilled(true);
+      if (slot === num && d.filled === false && !hasContent()) setUnfilled(true);
     }
     window.addEventListener("ezSlotComplete", onComplete);
-    return () => window.removeEventListener("ezSlotComplete", onComplete);
+
+    // Un-collapse as soon as Ezoic puts an ad in the box.
+    const mo = new MutationObserver(() => {
+      if (hasContent()) setUnfilled(false);
+    });
+    mo.observe(el, { childList: true });
+
+    // Fallback for accounts not yet serving: no ad after 5s → take up no space.
+    const t = setTimeout(() => {
+      if (!hasContent()) setUnfilled(true);
+    }, 5000);
+
+    return () => {
+      window.removeEventListener("ezSlotComplete", onComplete);
+      mo.disconnect();
+      clearTimeout(t);
+    };
   }, [num, pathname]);
 
   // Placeholders must be torn down when this slot leaves the page, or Ezoic
