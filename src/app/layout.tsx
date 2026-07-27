@@ -10,7 +10,7 @@ import SocialBar from "@/components/SocialBar";
 import Popunder from "@/components/Popunder";
 import StickyAnchorAd from "@/components/StickyAnchorAd";
 import EzoicRefresh from "@/components/EzoicRefresh";
-import { EZOIC_ACTIVE } from "@/lib/ads";
+import { EZOIC_ACTIVE, EZOIC_SCRIPTS } from "@/lib/ads";
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -80,7 +80,7 @@ export default function RootLayout({
             the header script, per Ezoic's integration guide. data-cfasync
             stops Cloudflare reordering them (we're behind Cloudflare).
             Plain <script> so they're in the SSR HTML, not lazy-injected. */}
-        {EZOIC_ACTIVE && (
+        {EZOIC_SCRIPTS && (
           /* eslint-disable @next/next/no-sync-scripts --
              Ezoic requires these load synchronously and in this exact order
              (consent before sa.min.js). Making them async breaks consent. */
