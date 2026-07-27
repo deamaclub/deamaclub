@@ -19,6 +19,18 @@ const nextConfig = {
       { protocol: "https", hostname: "**.deamaclub.com" },
     ],
   },
+  // Ezoic hosts our ads.txt so their authorized-seller list stays current
+  // without redeploys. Kept here (not nginx) so it survives a server rebuild.
+  // https://docs.ezoic.com/docs/ezoicads/adstxt/
+  async redirects() {
+    return [
+      {
+        source: "/ads.txt",
+        destination: "https://srv.adstxtmanager.com/19390/deamaclub.com",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

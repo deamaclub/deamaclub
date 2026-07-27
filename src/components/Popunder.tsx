@@ -2,6 +2,7 @@
 
 import { useAdScript } from "@/hooks/useAdScript";
 import { POPUNDER_ENABLED, POPUNDER_URL } from "@/lib/adsterra";
+import { ADSTERRA_ACTIVE } from "@/lib/ads";
 
 /**
  * Adsterra Popunder — site-wide, loads once. Opens a background tab on a
@@ -11,6 +12,10 @@ import { POPUNDER_ENABLED, POPUNDER_URL } from "@/lib/adsterra";
  * Off switch: set NEXT_PUBLIC_POPUNDER_ENABLED=0 and redeploy.
  */
 export default function Popunder() {
-  useAdScript("adsterra-popunder", POPUNDER_URL, POPUNDER_ENABLED);
+  useAdScript(
+    "adsterra-popunder",
+    POPUNDER_URL,
+    POPUNDER_ENABLED && ADSTERRA_ACTIVE
+  );
   return null;
 }

@@ -2,6 +2,7 @@
 
 import { useAdScript } from "@/hooks/useAdScript";
 import { ADSTERRA_ENABLED, SOCIALBAR_URL } from "@/lib/adsterra";
+import { ADSTERRA_ACTIVE } from "@/lib/ads";
 
 /**
  * Adsterra Social Bar — a site-wide floating overlay. Loads once, not
@@ -9,6 +10,10 @@ import { ADSTERRA_ENABLED, SOCIALBAR_URL } from "@/lib/adsterra";
  * so it never covers the dashboard or auth flows.
  */
 export default function SocialBar() {
-  useAdScript("adsterra-socialbar", SOCIALBAR_URL, ADSTERRA_ENABLED);
+  useAdScript(
+    "adsterra-socialbar",
+    SOCIALBAR_URL,
+    ADSTERRA_ENABLED && ADSTERRA_ACTIVE
+  );
   return null;
 }

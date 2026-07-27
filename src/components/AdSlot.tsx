@@ -8,6 +8,8 @@ import {
   NATIVE_KEY,
   NATIVE_URL,
 } from "@/lib/adsterra";
+import { ADSTERRA_ACTIVE, EZOIC_ACTIVE } from "@/lib/ads";
+import EzoicAd from "./EzoicAd";
 
 type AdSize =
   | "leaderboard"
@@ -152,8 +154,12 @@ export default function AdSlot({ id, size, className = "" }: AdSlotProps) {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
+  // Ezoic owns this slot → render its placeholder and let Ezoic size it.
+  // (Ezoic forbids other networks' code running alongside it.)
+  if (EZOIC_ACTIVE) return <EzoicAd id={id} className={className} />;
+
   // Disabled → render nothing (keeps layout clean when ads are off).
-  if (!ADSTERRA_ENABLED) return null;
+  if (!ADSTERRA_ENABLED || !ADSTERRA_ACTIVE) return null;
 
   // Card-shaped slot (detail-page in-article): a card-styled, ~card-width
   // box that auto-heights to show ALL of the native widget's items (e.g. a

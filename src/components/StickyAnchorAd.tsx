@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { ADSTERRA_ENABLED } from "@/lib/adsterra";
+import { ADSTERRA_ACTIVE } from "@/lib/ads";
 import AdSlot from "./AdSlot";
 
 /**
@@ -25,7 +26,8 @@ export default function StickyAnchorAd() {
   // A fresh route = a fresh impression, so un-dismiss on navigation.
   useEffect(() => setClosed(false), [pathname]);
 
-  if (!ADSTERRA_ENABLED || !mounted || closed) return null;
+  // Under Ezoic this stays off — Ezoic serves its own anchor unit.
+  if (!ADSTERRA_ENABLED || !ADSTERRA_ACTIVE || !mounted || closed) return null;
   if (BLOCKED_PREFIXES.some((p) => pathname?.startsWith(p))) return null;
 
   return (

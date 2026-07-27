@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Inter, Anton } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
@@ -8,6 +9,8 @@ import Providers from "@/components/Providers";
 import SocialBar from "@/components/SocialBar";
 import Popunder from "@/components/Popunder";
 import StickyAnchorAd from "@/components/StickyAnchorAd";
+import EzoicRefresh from "@/components/EzoicRefresh";
+import { EZOIC_ACTIVE } from "@/lib/ads";
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -72,6 +75,35 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${anton.variable}`}>
       <head>
+        {/* ── Ezoic ──────────────────────────────────────────────────────
+            Must be the FIRST thing in <head>: privacy/CMP scripts before
+            the header script, per Ezoic's integration guide. data-cfasync
+            stops Cloudflare reordering them (we're behind Cloudflare).
+            Plain <script> so they're in the SSR HTML, not lazy-injected. */}
+        {EZOIC_ACTIVE && (
+          /* eslint-disable @next/next/no-sync-scripts --
+             Ezoic requires these load synchronously and in this exact order
+             (consent before sa.min.js). Making them async breaks consent. */
+          <>
+            <script
+              data-cfasync="false"
+              src="https://cmp.gatekeeperconsent.com/min.js"
+            />
+            <script
+              data-cfasync="false"
+              src="https://the.gatekeeperconsent.com/cmp.min.js"
+            />
+            <script async src="//www.ezojs.com/ezoic/sa.min.js" />
+            <script
+              dangerouslySetInnerHTML={{
+                __html:
+                  "window.ezstandalone = window.ezstandalone || {};ezstandalone.cmd = ezstandalone.cmd || [];",
+              }}
+            />
+            <script src="//ezoicanalytics.com/analytics.js" />
+          </>
+          /* eslint-enable @next/next/no-sync-scripts */
+        )}
         {/* Clickadu site-ownership verification (raw meta — their verifier
             reads static HTML and does not execute JS). */}
         <meta name="clckd" content="5025a1386f7cc5445dfdb47d8f7de3b1" />
@@ -134,6 +166,13 @@ gtag('config', '${GA_ID}');
           <StickyAnchorAd />
           <SocialBar />
           <Popunder />
+          {EZOIC_ACTIVE && (
+            /* useSearchParams needs a Suspense boundary or it opts the whole
+               tree out of static rendering. */
+            <Suspense fallback={null}>
+              <EzoicRefresh />
+            </Suspense>
+          )}
         </Providers>
       </body>
     </html>
