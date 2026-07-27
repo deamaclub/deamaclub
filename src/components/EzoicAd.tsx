@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { EZOIC_PLACEHOLDERS } from "@/lib/ads";
 
@@ -32,6 +32,25 @@ export default function EzoicAd({
 }) {
   const num = EZOIC_PLACEHOLDERS[id];
   const pathname = usePathname();
+  const [unfilled, setUnfilled] = useState(false);
+
+  // Ezoic fires ezSlotComplete when it's done trying to fill a slot. If it
+  // came back empty, collapse the box so we don't leave a hole in the grid
+  // (matters while the account is still in review and nothing fills).
+  useEffect(() => {
+    if (!num) return;
+    setUnfilled(false);
+    function onComplete(e: Event) {
+      const d = (e as CustomEvent).detail as
+        | { id?: number; placeholderId?: number; filled?: boolean }
+        | undefined;
+      if (!d) return;
+      const slot = d.id ?? d.placeholderId;
+      if (slot === num && d.filled === false) setUnfilled(true);
+    }
+    window.addEventListener("ezSlotComplete", onComplete);
+    return () => window.removeEventListener("ezSlotComplete", onComplete);
+  }, [num, pathname]);
 
   // Placeholders must be torn down when this slot leaves the page, or Ezoic
   // sees a stale/duplicate ID and fill becomes unpredictable.
@@ -55,7 +74,9 @@ export default function EzoicAd({
       id={`ezoic-pub-ad-placeholder-${num}`}
       data-ad-zone={id}
       data-ad-provider="ezoic"
-      className={className}
+      // Stays in the DOM either way — Ezoic must be able to find the
+      // placeholder — but takes up no space until it actually fills.
+      className={unfilled ? "hidden" : className}
     />
   );
 }

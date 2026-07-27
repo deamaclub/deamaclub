@@ -15,7 +15,7 @@
 export type AdProvider = "adsterra" | "ezoic" | "none";
 
 export const AD_PROVIDER: AdProvider =
-  (process.env.NEXT_PUBLIC_AD_PROVIDER as AdProvider) || "adsterra";
+  (process.env.NEXT_PUBLIC_AD_PROVIDER as AdProvider) || "ezoic";
 
 export const ADSTERRA_ACTIVE = AD_PROVIDER === "adsterra";
 export const EZOIC_ACTIVE = AD_PROVIDER === "ezoic";
