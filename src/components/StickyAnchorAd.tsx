@@ -31,8 +31,9 @@ export default function StickyAnchorAd() {
   return (
     <>
       {/* Spacer: the bar is fixed, so reserve real page height or it would
-          sit on top of the footer. */}
-      <div aria-hidden className="h-[64px] md:h-[104px]" />
+          sit on top of the footer. Must be >= the bar's rendered height
+          (73px mobile / 113px desktop: banner + label + padding). */}
+      <div aria-hidden className="h-[80px] md:h-[120px]" />
       <div
         className="fixed bottom-0 left-0 right-0 z-30 border-t border-deama-border bg-deama-black/95 backdrop-blur-sm"
         role="complementary"
