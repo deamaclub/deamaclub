@@ -27,7 +27,9 @@ const nextConfig = {
       {
         source: "/ads.txt",
         destination: "https://srv.adstxtmanager.com/19390/deamaclub.com",
-        permanent: true,
+        // 301 explicitly (Next's `permanent: true` emits 308). Ezoic's guide
+        // and ads.txt crawlers expect a 301.
+        statusCode: 301,
       },
     ];
   },
