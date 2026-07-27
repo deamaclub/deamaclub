@@ -93,7 +93,11 @@ export default function RootLayout({
               data-cfasync="false"
               src="https://the.gatekeeperconsent.com/cmp.min.js"
             />
-            <script async src="//www.ezojs.com/ezoic/sa.min.js" />
+            {/* NOT async: React hoists `<script async>` above everything
+                else in <head>, which put sa.min.js BEFORE the consent
+                scripts and fails Ezoic's own integration check. Plain
+                scripts keep the authored order (CMP → sa.min.js). */}
+            <script src="//www.ezojs.com/ezoic/sa.min.js" />
             <script
               dangerouslySetInnerHTML={{
                 __html:
