@@ -28,7 +28,6 @@ export default function AutopostPrivacyPolicyPage() {
       </p>
       <ul>
         <li>@deamaclub</li>
-        <li>@glowspace</li>
         <li>@nysgoods</li>
       </ul>
       <p>
