@@ -37,7 +37,6 @@ export default function AutopostTermsPage() {
       </p>
       <ul>
         <li>@deamaclub</li>
-        <li>@glowspace</li>
         <li>@nysgoods</li>
       </ul>
 
