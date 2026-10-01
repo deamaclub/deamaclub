@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Share2, Copy, Check } from "lucide-react";
+import { Share2, Copy, Check, Send, Loader2 } from "lucide-react";
 
 interface ShareMenuProps {
   url: string;
   title: string;
+  postId?: string;
+  /** Admins get a one-tap "Send to Telegram" (vid_grab bot) button. */
+  isAdmin?: boolean;
 }
 
 const FacebookIcon = ({ size = 16 }: { size?: number }) => (
@@ -26,10 +29,12 @@ const InstagramIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-export default function ShareMenu({ url, title }: ShareMenuProps) {
+export default function ShareMenu({ url, title, postId, isAdmin }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [igHint, setIgHint] = useState(false);
+  const [tgState, setTgState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [tgError, setTgError] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,6 +83,26 @@ export default function ShareMenu({ url, title }: ShareMenuProps) {
     setTimeout(() => setIgHint(false), 2500);
     if (typeof window !== "undefined" && /Android|iPhone|iPad/.test(window.navigator.userAgent)) {
       window.location.href = "instagram://library";
+    }
+  }
+
+  async function sendToTelegram() {
+    if (!postId || tgState === "sending") return;
+    setTgState("sending");
+    setTgError("");
+    try {
+      const res = await fetch("/api/admin/telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+      setTgState("sent");
+      setTimeout(() => setTgState("idle"), 3000);
+    } catch (e) {
+      setTgError(e instanceof Error ? e.message : "Failed");
+      setTgState("error");
     }
   }
 
@@ -149,6 +174,34 @@ export default function ShareMenu({ url, title }: ShareMenuProps) {
               X
             </a>
           </div>
+
+          {isAdmin && postId && (
+            <button
+              type="button"
+              onClick={sendToTelegram}
+              disabled={tgState === "sending"}
+              className="mt-2 w-full flex items-center justify-center gap-2 py-2 border border-deama-border rounded hover:border-deama-red hover:text-deama-red transition-colors text-[10px] uppercase tracking-wider disabled:opacity-60"
+            >
+              {tgState === "sending" ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : tgState === "sent" ? (
+                <Check size={16} />
+              ) : (
+                <Send size={16} />
+              )}
+              {tgState === "sending"
+                ? "Sending…"
+                : tgState === "sent"
+                ? "Sent to Telegram"
+                : "Send to Telegram"}
+            </button>
+          )}
+
+          {tgState === "error" && (
+            <p className="mt-2 text-[11px] text-deama-red bg-deama-red/10 border border-deama-red/30 rounded px-2 py-1.5">
+              {tgError}
+            </p>
+          )}
 
           {igHint && (
             <p className="mt-3 text-[11px] text-deama-gold-bright bg-deama-gold/10 border border-deama-gold/30 rounded px-2 py-1.5">

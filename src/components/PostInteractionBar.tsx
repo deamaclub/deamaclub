@@ -14,6 +14,7 @@ interface PostInteractionBarProps {
       that likes are unauthenticated + pure-counter. */
   initialLikedByMe?: boolean;
   commentCount: number;
+  isAdmin?: boolean;
 }
 
 export default function PostInteractionBar({
@@ -22,6 +23,7 @@ export default function PostInteractionBar({
   title,
   initialLikeCount,
   commentCount,
+  isAdmin = false,
 }: PostInteractionBarProps) {
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [pulseKey, setPulseKey] = useState(0);
@@ -78,7 +80,7 @@ export default function PostInteractionBar({
         )}
       </a>
 
-      <ShareMenu url={url} title={title} />
+      <ShareMenu url={url} title={title} postId={postId} isAdmin={isAdmin} />
     </div>
   );
 }

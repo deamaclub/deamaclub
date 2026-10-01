@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -97,7 +99,11 @@ export default async function VideoPage({ params }: PageProps) {
   const post = await loadPost(params.slug);
   if (!post || !post.published) notFound();
 
-  const related = await getRelatedPosts(post.id, post.category.id, 8);
+  const [related, session] = await Promise.all([
+    getRelatedPosts(post.id, post.category.id, 8),
+    getServerSession(authOptions),
+  ]);
+  const isAdmin = session?.user?.role === "ADMIN";
   const url = absoluteUrl(`/video/${post.slug}`);
 
   const ldJson = {
@@ -231,6 +237,7 @@ export default async function VideoPage({ params }: PageProps) {
           title={post.title}
           initialLikeCount={post.likeCount}
           commentCount={post._count.comments}
+          isAdmin={isAdmin}
         />
 
         <header className="mt-4">
