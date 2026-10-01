@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(ssh root@204.48.24.230 \"cd /var/www/deamaclub && grep -hE 'AD_PROVIDER|EZOIC_DETECT|POPUNDER_ENABLED' .env .env.production .env.local 2>/dev/null\")"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+ssh root@204.48.24.230
+cd /var/www/deamaclub
+npm run build && pm2 reload deamaclub --update-env && sleep 2 #this rebuilds
+
+npm run build
+git add .
+git commit -m ""
+git push  #push_and_rebuild
