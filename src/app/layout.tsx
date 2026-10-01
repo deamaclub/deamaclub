@@ -11,7 +11,7 @@ import Popunder from "@/components/Popunder";
 import MonetagTags from "@/components/MonetagTags";
 import StickyAnchorAd from "@/components/StickyAnchorAd";
 import EzoicRefresh from "@/components/EzoicRefresh";
-import { EZOIC_ACTIVE, EZOIC_SCRIPTS } from "@/lib/ads";
+import { EZOIC_ACTIVE, EZOIC_SCRIPTS, SLOT_ADS } from "@/lib/ads";
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -163,11 +163,13 @@ gtag('config', '${GA_ID}');
       <body className="bg-deama-black text-deama-text min-h-screen flex flex-col">
         <Providers>
           <Header />
-          <div className="w-full bg-deama-ink border-b border-deama-border">
-            <div className="mx-auto max-w-7xl px-4 py-2">
-              <AdSlot id="leaderboard-top" size="leaderboard" />
+          {SLOT_ADS && (
+            <div className="w-full bg-deama-ink border-b border-deama-border">
+              <div className="mx-auto max-w-7xl px-4 py-2">
+                <AdSlot id="leaderboard-top" size="leaderboard" />
+              </div>
             </div>
-          </div>
+          )}
           <main className="flex-1">{children}</main>
           <Footer />
           <StickyAnchorAd />

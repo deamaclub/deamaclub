@@ -2,6 +2,7 @@ import VideoCard, { VideoCardData } from "./VideoCard";
 import AdSlot from "./AdSlot";
 import LeadAdBlock from "./LeadAdBlock";
 import { ADSTERRA_ENABLED } from "@/lib/adsterra";
+import { SLOT_ADS } from "@/lib/ads";
 
 interface VideoGridProps {
   posts: VideoCardData[];
@@ -25,7 +26,7 @@ export default function VideoGrid({
   const gridClass = "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4";
 
   // No ad → plain grid of every video.
-  if (!showAd || !ADSTERRA_ENABLED) {
+  if (!showAd || !SLOT_ADS || !ADSTERRA_ENABLED) {
     return (
       <div className={gridClass}>
         {posts.map((p, i) => (
