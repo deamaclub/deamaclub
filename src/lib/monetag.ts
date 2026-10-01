@@ -24,8 +24,6 @@ export type MonetagTag = {
   url: string;
   /** data-* attributes the loader reads off its own <script> tag. */
   dataset?: Record<string, string>;
-  /** Load only on desktop (mouse + wide screen), never on phones/tablets. */
-  desktopOnly?: boolean;
 };
 
 export const MONETAG_TAGS: MonetagTag[] = [
@@ -35,22 +33,12 @@ export const MONETAG_TAGS: MonetagTag[] = [
   // In-Page Push — "Magnificent tag", zone 11874231
   { id: "monetag-inpage", url: "https://nap5k.com/tag.min.js", dataset: { zone: "11874231" } },
 
-  // OnClick (Popunder) — "Beautiful tag", zone 11874382. DESKTOP ONLY: on
-  // desktop it opens behind the window; on phones there's no "behind", so it
-  // would pull visitors off the site. Phones get the tab-under below instead.
-  { id: "monetag-popunder", url: "https://al5sm.com/tag.min.js", dataset: { zone: "11874382" }, desktopOnly: true },
+  // OnClick (Popunder) — "Beautiful tag", zone 11874382. Desktop: opens
+  // behind the window. Phones have no "behind", so there it opens a new tab.
+  { id: "monetag-popunder", url: "https://al5sm.com/tag.min.js", dataset: { zone: "11874382" } },
 
   // Vignette Banner — full-screen overlay with a close button. Needs its own
   // standalone zone (create one in Monetag → Add zone → Vignette Banner) and
   // its tag pasted here.
 ];
 
-/**
- * Mobile tab-under (see components/MonetagTabUnder.tsx). On a visitor's
- * first internal link tap per session, the link opens in a NEW tab in front
- * and the tab they were on navigates to this ad URL behind it.
- *
- * Paste a Monetag Direct Link here (Monetag → Add zone → Direct Link).
- * Empty string = tab-under off.
- */
-export const TABUNDER_URL = "";

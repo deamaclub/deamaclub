@@ -1,9 +1,7 @@
 "use client";
 
 import { useAdScript } from "@/hooks/useAdScript";
-import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { MONETAG_ENABLED, MONETAG_TAGS, type MonetagTag } from "@/lib/monetag";
-import MonetagTabUnder from "./MonetagTabUnder";
 
 /**
  * Loads each enabled Monetag format once, site-wide. Goes through
@@ -11,27 +9,16 @@ import MonetagTabUnder from "./MonetagTabUnder";
  * staff sessions. Which formats are on lives in src/lib/monetag.ts.
  */
 export default function MonetagTags() {
-  const isDesktop = useIsDesktop();
   return (
     <>
       {MONETAG_TAGS.map((tag) => (
-        <MonetagScript key={tag.id} tag={tag} isDesktop={isDesktop} />
+        <MonetagScript key={tag.id} tag={tag} />
       ))}
-      {/* Phones get the tab-under; desktop has the real popunder. */}
-      {isDesktop === false && <MonetagTabUnder />}
     </>
   );
 }
 
-function MonetagScript({
-  tag,
-  isDesktop,
-}: {
-  tag: MonetagTag;
-  isDesktop: boolean | null;
-}) {
-  // desktopOnly tags wait until we know the device, then load on desktop only.
-  const allowed = !tag.desktopOnly || isDesktop === true;
-  useAdScript(tag.id, tag.url, MONETAG_ENABLED && allowed, tag.dataset);
+function MonetagScript({ tag }: { tag: MonetagTag }) {
+  useAdScript(tag.id, tag.url, MONETAG_ENABLED, tag.dataset);
   return null;
 }
