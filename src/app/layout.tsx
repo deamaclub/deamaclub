@@ -109,11 +109,13 @@ export default function RootLayout({
           </>
           /* eslint-enable @next/next/no-sync-scripts */
         )}
-        {/* Clickadu + Monetag site-ownership verification (raw meta — their
+        {/* Clickadu + Monetag + ExoClick site-ownership verification (raw meta — their
             verifiers read static HTML and do not execute JS). The Monetag ad tags
             are <MonetagTags /> in the body. */}
         <meta name="clckd" content="5025a1386f7cc5445dfdb47d8f7de3b1" />
         <meta name="monetag" content="5d01d2b79cea96a9aa8a0b338f5929fd" />
+        {/* ExoClick site verification (also public/208f66bafe5be04226021fbc91c2400e.html). */}
+        <meta name="6a97888e-site-verification" content="208f66bafe5be04226021fbc91c2400e" />
         {GA_ID && (
           <>
             {/* Google Analytics 4 — gtag.js loader + inline config.
