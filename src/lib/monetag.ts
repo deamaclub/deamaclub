@@ -1,28 +1,43 @@
 /**
- * Monetag configuration.
+ * Monetag ad formats — one standalone zone per format.
  *
- * ONE loader only: the Multitag ("Perfect tag", zone 285494). It serves all
- * four formats from a single script, using these sub-zones in the Monetag
- * dashboard:
+ * To turn a format OFF, comment out its line with // and redeploy.
+ * To turn it back ON, remove the //.
  *
- *   11876047  OnClick (Popunder)
- *   11876048  In-Page Push
- *   11876049  Vignette Banner
- *   11876050  Push Notifications  ← also referenced by public/sw.js
+ * (We don't use the Multitag "Perfect tag" any more: it's a single script
+ * whose formats Monetag picks server-side, so the popunder couldn't be
+ * switched off from here.)
  *
- * Do NOT add the standalone format tags (5gvci / nap5k / al5sm) next to it —
- * they duplicate the Multitag's formats (double popunders, double push
- * prompts) and compete with it for the same impression.
+ * Never run the Multitag alongside these — it duplicates the same formats.
  *
- * Site-ownership is verified by the <meta name="monetag"> in the root layout,
- * which stays in the static HTML independently of this switch.
+ * Push Notifications also needs public/sw.js, whose zoneId must match the
+ * push zone below (11874384).
  *
- * Off switch: NEXT_PUBLIC_MONETAG_ENABLED=0, then rebuild (NEXT_PUBLIC_* is
- * inlined at build time). public/sw.js keeps working for already-subscribed
- * push users either way.
+ * Kill switch for everything: NEXT_PUBLIC_MONETAG_ENABLED=0, then rebuild
+ * (NEXT_PUBLIC_* is inlined at build time).
  */
 export const MONETAG_ENABLED =
   process.env.NEXT_PUBLIC_MONETAG_ENABLED !== "0";
 
-export const MULTITAG_URL = "https://quge5.com/88/tag.min.js";
-export const MULTITAG_ZONE = "285494";
+export type MonetagTag = {
+  id: string;
+  url: string;
+  /** data-* attributes the loader reads off its own <script> tag. */
+  dataset?: Record<string, string>;
+};
+
+export const MONETAG_TAGS: MonetagTag[] = [
+  // Push Notifications — "Optimistic tag", zone 11874384
+  { id: "monetag-push", url: "https://5gvci.com/act/files/tag.min.js?z=11874384", dataset: { cfasync: "false" } },
+
+  // In-Page Push — "Magnificent tag", zone 11874231
+  { id: "monetag-inpage", url: "https://nap5k.com/tag.min.js", dataset: { zone: "11874231" } },
+
+  // OnClick (Popunder) — "Beautiful tag", zone 11874382. OFF: opens a new
+  // tab and sends visitors away from the site.
+  // { id: "monetag-popunder", url: "https://al5sm.com/tag.min.js", dataset: { zone: "11874382" } },
+
+  // Vignette Banner — full-screen overlay with a close button. Needs its own
+  // standalone zone (create one in Monetag → Add zone → Vignette Banner) and
+  // its tag pasted here.
+];
