@@ -22,7 +22,13 @@ const BLOCKED_PREFIXES = ["/admin", "/login", "/account"];
  *      during App Router soft navigation, so an early `return` on its own
  *      would leave a previously-injected loader live on /admin.
  */
-export function useAdScript(id: string, url: string, enabled: boolean) {
+export function useAdScript(
+  id: string,
+  url: string,
+  enabled: boolean,
+  /** data-* attributes some loaders read off their own tag (e.g. data-zone). */
+  dataset?: Record<string, string>
+) {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const role = session?.user?.role;
@@ -50,6 +56,7 @@ export function useAdScript(id: string, url: string, enabled: boolean) {
     s.id = id;
     s.src = url;
     s.async = true;
+    if (dataset) Object.assign(s.dataset, dataset);
     document.body.appendChild(s);
-  }, [pathname, enabled, id, url, isStaff, status]);
+  }, [pathname, enabled, id, url, dataset, isStaff, status]);
 }

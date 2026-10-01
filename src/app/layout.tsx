@@ -8,6 +8,7 @@ import AdSlot from "@/components/AdSlot";
 import Providers from "@/components/Providers";
 import SocialBar from "@/components/SocialBar";
 import Popunder from "@/components/Popunder";
+import MonetagMultitag from "@/components/MonetagMultitag";
 import StickyAnchorAd from "@/components/StickyAnchorAd";
 import EzoicRefresh from "@/components/EzoicRefresh";
 import { EZOIC_ACTIVE, EZOIC_SCRIPTS } from "@/lib/ads";
@@ -108,8 +109,9 @@ export default function RootLayout({
           </>
           /* eslint-enable @next/next/no-sync-scripts */
         )}
-        {/* Clickadu site-ownership verification (raw meta — their verifier
-            reads static HTML and does not execute JS). */}
+        {/* Clickadu + Monetag site-ownership verification (raw meta — their
+            verifiers read static HTML and do not execute JS). The Monetag ad
+            loader itself is <MonetagMultitag /> in the body. */}
         <meta name="clckd" content="5025a1386f7cc5445dfdb47d8f7de3b1" />
         <meta name="monetag" content="5d01d2b79cea96a9aa8a0b338f5929fd" />
         {GA_ID && (
@@ -171,6 +173,7 @@ gtag('config', '${GA_ID}');
           <StickyAnchorAd />
           <SocialBar />
           <Popunder />
+          <MonetagMultitag />
           {EZOIC_ACTIVE && (
             /* useSearchParams needs a Suspense boundary or it opts the whole
                tree out of static rendering. */
