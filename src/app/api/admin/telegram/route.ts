@@ -128,7 +128,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, sent: "video" });
   } catch (e) {
+    // 500, not 502: Cloudflare/nginx replace 502 bodies with their own
+    // error page, which would hide this message from the admin.
     const message = e instanceof Error ? e.message : "send failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    console.error("[telegram] send failed:", e);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

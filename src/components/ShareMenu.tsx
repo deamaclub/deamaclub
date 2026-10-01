@@ -96,8 +96,17 @@ export default function ShareMenu({ url, title, postId, isAdmin }: ShareMenuProp
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postId }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+      const raw = await res.text();
+      let data: { error?: string } = {};
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        /* proxy error page, not our JSON */
+      }
+      if (!res.ok) {
+        const hint = data.error || raw.replace(/<[^>]+>/g, " ").replace(/s+/g, " ").trim().slice(0, 140);
+        throw new Error(`Failed (${res.status})${hint ? `: ${hint}` : ""}`);
+      }
       setTgState("sent");
       setTimeout(() => setTgState("idle"), 3000);
     } catch (e) {
