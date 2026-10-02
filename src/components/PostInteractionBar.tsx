@@ -15,6 +15,8 @@ interface PostInteractionBarProps {
   initialLikedByMe?: boolean;
   commentCount: number;
   isAdmin?: boolean;
+  /** Where "Comment" goes. Default: the comments on this same page. */
+  commentsHref?: string;
 }
 
 export default function PostInteractionBar({
@@ -24,6 +26,7 @@ export default function PostInteractionBar({
   initialLikeCount,
   commentCount,
   isAdmin = false,
+  commentsHref = "#comments",
 }: PostInteractionBarProps) {
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [pulseKey, setPulseKey] = useState(0);
@@ -71,7 +74,7 @@ export default function PostInteractionBar({
       </button>
 
       <a
-        href="#comments"
+        href={commentsHref}
         className={`${btnBase} hover:border-deama-red hover:text-deama-red`}
       >
         <MessageSquare size={14} /> Comment

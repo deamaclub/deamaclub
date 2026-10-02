@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { getLatestPosts, getTrendingPosts, POSTS_PER_PAGE } from "@/lib/posts";
+import { getFeedPage, getNewestFeedPost, newFeedSeed } from "@/lib/feed";
 import { absoluteUrl } from "@/lib/utils";
-import VideoGrid from "@/components/VideoGrid";
-import TrendingHero from "@/components/TrendingHero";
-import Pagination from "@/components/Pagination";
+import Feed from "@/components/Feed";
 
-export const revalidate = 60;
+// Rendered per request so every visit gets its own shuffle.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Deamaclub — Viral Videos, Fights, Hip Hop & Street Culture",
@@ -14,16 +13,15 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-interface HomePageProps {
-  searchParams: { page?: string };
-}
-
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const page = Math.max(1, parseInt(searchParams.page || "1", 10) || 1);
-  const [trending, { posts, total }] = await Promise.all([
-    page === 1 ? getTrendingPosts(5) : Promise.resolve([]),
-    getLatestPosts({ page, perPage: POSTS_PER_PAGE }),
-  ]);
+/**
+ * Homepage = the feed: the newest video first, then an endless random feed
+ * (see lib/feed.ts). Opening any video (/video/<slug>) gives the same feed
+ * with that video on top.
+ */
+export default async function HomePage() {
+  const seed = newFeedSeed();
+  const newest = await getNewestFeedPost();
+  const random = await getFeedPage({ seed, offset: 0, excludeId: newest?.id });
 
   const websiteLd = {
     "@context": "https://schema.org",
@@ -53,7 +51,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className="mx-auto max-w-2xl px-4 py-6">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }}
@@ -62,31 +60,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
       />
-      <div>
-        {/* Crawlable H1 for the homepage (visually compact). */}
-        <h1 className="sr-only">
-          Deamaclub — Viral Videos, Fights, Hip Hop, Sports & Street Culture
-        </h1>
-        {page === 1 && <TrendingHero posts={trending} />}
-
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="font-display tracking-wider text-xl text-deama-gold-bright">
-            LATEST
-          </h2>
-          <span className="text-xs text-deama-muted">
-            Page {page} · {total.toLocaleString()} videos
-          </span>
-        </div>
-
-        <VideoGrid posts={posts} />
-
-        <Pagination
-          page={page}
-          perPage={POSTS_PER_PAGE}
-          total={total}
-          basePath="/"
+      {/* Crawlable H1 for the homepage (visually hidden). */}
+      <h1 className="sr-only">
+        Deamaclub — Viral Videos, Fights, Hip Hop, Sports & Street Culture
+      </h1>
+      {newest || random.length > 0 ? (
+        <Feed
+          initialPosts={newest ? [newest, ...random] : random}
+          seed={seed}
+          excludeId={newest?.id}
+          nextOffset={random.length}
+          priorityFirst
         />
-      </div>
+      ) : (
+        <p className="text-deama-muted text-center py-16">No videos yet.</p>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -17,6 +17,32 @@ interface VideoPlayerProps {
   thumbnailUrl?: string | null;
   title: string;
   relatedPosts?: RelatedPostStub[];
+  /** Start playing as soon as it loads (feed: the visitor just tapped play). */
+  autoplay?: boolean;
+}
+
+/**
+ * Only one video plays at a time across the page (the feed stacks many).
+ * A player that starts announces itself; every other player pauses.
+ */
+export const PLAY_EVENT = "deama:play";
+
+export function announcePlay(playerId: string) {
+  window.dispatchEvent(new CustomEvent(PLAY_EVENT, { detail: playerId }));
+}
+
+function withAutoplay(url: string): string {
+  try {
+    const u = new URL(url);
+    // YouTube wants 1; Bunny (and most Player.js embeds) want true.
+    u.searchParams.set(
+      "autoplay",
+      /youtube\.com|youtu\.be/.test(u.hostname) ? "1" : "true"
+    );
+    return u.toString();
+  } catch {
+    return url;
+  }
 }
 
 /**
@@ -44,7 +70,9 @@ export default function VideoPlayer({
   thumbnailUrl,
   title,
   relatedPosts = [],
+  autoplay = false,
 }: VideoPlayerProps) {
+  const playerId = useId();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [showEndScreen, setShowEndScreen] = useState(false);
@@ -62,28 +90,46 @@ export default function VideoPlayer({
     return () => clearTimeout(t);
   }, [postId]);
 
-  const subscribe = useCallback(() => {
+  const sendToIframe = useCallback((payload: Record<string, string>) => {
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentWindow) return;
-    const msg = JSON.stringify({
-      context: "player.js",
-      version: "0.0.7",
-      method: "addEventListener",
-      value: "ended",
-      listener: "deamaclub-ended",
-    });
     try {
-      iframe.contentWindow.postMessage(msg, "*");
+      iframe.contentWindow.postMessage(
+        JSON.stringify({ context: "player.js", version: "0.0.7", ...payload }),
+        "*"
+      );
     } catch {
       /* cross-origin restrictions — swallow */
     }
   }, []);
+
+  const subscribe = useCallback(() => {
+    sendToIframe({ method: "addEventListener", value: "ended", listener: "deamaclub-ended" });
+    sendToIframe({ method: "addEventListener", value: "play", listener: "deamaclub-play" });
+  }, [sendToIframe]);
+
+  // Another player on the page started → pause this one.
+  useEffect(() => {
+    function onOtherPlay(e: Event) {
+      if ((e as CustomEvent<string>).detail === playerId) return;
+      if (embedUrl) sendToIframe({ method: "pause" });
+      videoRef.current?.pause();
+    }
+    window.addEventListener(PLAY_EVENT, onOtherPlay);
+    return () => window.removeEventListener(PLAY_EVENT, onOtherPlay);
+  }, [playerId, embedUrl, sendToIframe]);
+
+  // Autoplay = the visitor asked to play this one, so silence the rest now.
+  useEffect(() => {
+    if (autoplay) announcePlay(playerId);
+  }, [autoplay, playerId]);
 
   // Iframe `ended` handshake
   useEffect(() => {
     if (!embedUrl) return;
 
     function onMessage(event: MessageEvent) {
+      if (event.source !== iframeRef.current?.contentWindow) return;
       let data: unknown = event.data;
       if (typeof data === "string") {
         try {
@@ -112,6 +158,7 @@ export default function VideoPlayer({
         if (d.event === "ended") {
           setShowEndScreen(true);
         }
+        if (d.event === "play") announcePlay(playerId);
         return;
       }
 
@@ -128,7 +175,7 @@ export default function VideoPlayer({
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [embedUrl, subscribe]);
+  }, [embedUrl, subscribe, playerId]);
 
   // Proactive subscribe attempts (in case 'ready' was emitted before
   // our listener attached, or the player doesn't emit one).
@@ -149,9 +196,16 @@ export default function VideoPlayer({
     function onEnded() {
       setShowEndScreen(true);
     }
+    function onPlay() {
+      announcePlay(playerId);
+    }
     v.addEventListener("ended", onEnded);
-    return () => v.removeEventListener("ended", onEnded);
-  }, [videoUrl]);
+    v.addEventListener("play", onPlay);
+    return () => {
+      v.removeEventListener("ended", onEnded);
+      v.removeEventListener("play", onPlay);
+    };
+  }, [videoUrl, playerId]);
 
   const canShowOverlay = showEndScreen && relatedPosts.length > 0;
 
@@ -160,7 +214,7 @@ export default function VideoPlayer({
       {embedUrl ? (
         <iframe
           ref={iframeRef}
-          src={embedUrl}
+          src={autoplay ? withAutoplay(embedUrl) : embedUrl}
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
@@ -174,6 +228,7 @@ export default function VideoPlayer({
           src={videoUrl}
           poster={thumbnailUrl || undefined}
           controls
+          autoPlay={autoplay}
           playsInline
           preload="metadata"
           className="absolute inset-0 w-full h-full"
