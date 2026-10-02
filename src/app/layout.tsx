@@ -9,7 +9,6 @@ import Providers from "@/components/Providers";
 import SocialBar from "@/components/SocialBar";
 import Popunder from "@/components/Popunder";
 import MonetagTags from "@/components/MonetagTags";
-import ExoInterstitial from "@/components/ExoInterstitial";
 import StickyAnchorAd from "@/components/StickyAnchorAd";
 import EzoicRefresh from "@/components/EzoicRefresh";
 import { EZOIC_ACTIVE, EZOIC_SCRIPTS, SLOT_ADS } from "@/lib/ads";
@@ -179,7 +178,6 @@ gtag('config', '${GA_ID}');
           <SocialBar />
           <Popunder />
           <MonetagTags />
-          <ExoInterstitial />
           {EZOIC_ACTIVE && (
             /* useSearchParams needs a Suspense boundary or it opts the whole
                tree out of static rendering. */
